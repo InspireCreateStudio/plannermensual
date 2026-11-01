@@ -6,7 +6,7 @@
 // =====================================================================
 
 const LISTAS_EDITABLES = [
-  ['Estados', [...Object.keys(CATS).map(k => [`estados.${k}`, `${CATS[k].e} ${CATS[k].n}`]), ['estados.eventos', '📅 Eventos'], ['estados.descarga', '🧠 Descarga mental'], ['estados.objetivos', '🎯 Objetivos']]],
+  ['Estados', [...Object.keys(CATS).map(k => [`estados.${k}`, `${CATS[k].e} ${CATS[k].n}`]), ['estados.redes', '📱 Redes (tareas)'], ['estados.eventos', '📅 Eventos'], ['estados.descarga', '🧠 Descarga mental'], ['estados.objetivos', '🎯 Objetivos']]],
   ['Tareas', [['prioridad', 'Prioridad'], ['energia', 'Energía'], ['personas', 'Personas (Médicos)']]],
   ['Descarga y objetivos', [['catDescarga', 'Categorías de la descarga'], ['catObjetivos', 'Categorías de objetivos']]],
   ['Newsletter', [['segmentos', 'Segmentos'], ['tiposNews', 'Tipos'], ['librosNews', 'Libros']]],

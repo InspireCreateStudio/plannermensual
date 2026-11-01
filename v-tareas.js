@@ -67,7 +67,7 @@ VISTAS.tareas = (cont) => {
 function subCat(cat) {
   const t = { novela: 'Escritura, edición y todo lo de tus novelas.', web: 'Cambios y novedades de tu web.', newsletter: 'Cada envío y cada entrada del blog, con sus resultados.',
     formacion: 'Cursos y formaciones: qué harás cada día.', club: 'Tu club de lectura.', etsy: 'Tu tienda de Etsy.', ninos: 'Compras, reuniones, autorizaciones…',
-    casa: 'Recados y cosas de casa. La lista de la compra está en Casa.', medicos: 'Citas y revisiones de toda la familia.', redes: 'Las piezas del batch. Guion, caption y pasos en Redes.', eventos: 'Citas y eventos del calendario.' };
+    casa: 'Recados y cosas de casa. La lista de la compra está en Casa.', medicos: 'Citas y revisiones de toda la familia.', redes: 'Las piezas del batch y las tareas de redes. Guion, caption y pasos en Redes.', eventos: 'Citas y eventos del calendario.' };
   return t[cat] || '';
 }
 function listaAgrupada(lista, orden, est) {

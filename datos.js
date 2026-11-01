@@ -15,7 +15,7 @@ const CATS = {
   casa:       { n: 'Casa',              e: '🏡', color: '#80684f', estados: 'casa',       hecho: '✅Completada' },
   medicos:    { n: 'Médicos',           e: '🩺', color: '#c2453d', estados: 'medicos',    hecho: '✅Completada', persona: true },
 };
-const CAT_REDES = { n: 'Redes', e: '📱', color: '#d0587e' };
+const CAT_REDES = { n: 'Redes', e: '📱', color: '#d0587e', estados: 'redes', hecho: '✅Completada' };
 // Colores de serie (para «Volver a los de serie»)
 const COLOR_ACENTO = '#9c4f35';
 const COLORES_SERIE = Object.fromEntries([...Object.entries(CATS).map(([k, c]) => [k, c.color]), ['redes', '#d0587e'], ['eventos', '#5b6bb5']]);
@@ -59,6 +59,7 @@ function listasPorDefecto() {
       web: ['💡Idea', '📈En proceso', '📝Pendiente diseño', '⏱️Programado', '⚡Lanzado', '⛔Eliminada'],
       newsletter: ['💡Idea', '📝Redactada', '⏱️Programada', '🚀Enviada', '⏸️ En borradores', '✅Completada', '🚀Atrasada', '❌Cancelada', '🌐Publicado'],
       etsy: ['💡Idea', '📈 En proceso', '🛒Publicado'],
+      redes: ['💭Pendiente', '📈 En curso', '✅Completada'],
       club: ['📝To do', '📈 En proceso', '✅Completada'],
       ninos: ['🐾Pendiente', '📈 En curso', '✅Completada'],
       casa: ['🏡Pendiente', '📈 En curso', '✅Completada'],
@@ -101,6 +102,13 @@ function completar(d) {
   d.listas.prioridad = d.listas.prioridad.map(limpia);
   d.tareas.forEach(t => { t.prioridad = limpia(t.prioridad); });
   d.batch.forEach(b => { b.prioridad = limpia(b.prioridad); });
+  // Tareas de Instagram que se importaron en «Web» antes de que las tareas pudieran ir en Redes
+  d.tareas.forEach(t => {
+    if (t.cat !== 'web' || !/^Instagram:/.test(t.tarea || '')) return;
+    t.cat = 'redes'; t.tarea = t.tarea.replace(/^Instagram:\s*/, ''); t.tarea = t.tarea.charAt(0).toUpperCase() + t.tarea.slice(1);
+    if (!d.listas.estados.redes.includes(t.estado)) t.estado = esHecho(t.estado) ? '✅Completada' : d.listas.estados.redes[0];
+    if (/categoría de tareas de redes/.test(t.notas || '')) delete t.notas;
+  });
   return d;
 }
 
