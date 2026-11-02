@@ -9,7 +9,7 @@ function formulario(obj, campos) {
   return `<div class="form">${campos.map(c => {
     if (c.tipo === 'sep') return `<h4 class="sep-form">${esc(c.t)}</h4>`;
     if (c.tipo === 'pasos') return `<div class="campo pasos-ed" data-k="${c.k}"><span>${esc(c.t)}</span><ul>${(obj[c.k] || []).map(p => filaPasoEd(p)).join('')}</ul>
-      <input class="nuevo-paso" placeholder="Añadir un paso y pulsar Enter"></div>`;
+      <input class="nuevo-paso" placeholder="Añadir una tarea y pulsar Enter"></div>`;
     const v = obj[c.k] ?? '';
     const id = 'f-' + c.k;
     const cl = `campo ${c.ancho || ''}`;
@@ -116,7 +116,7 @@ function camposTarea(cat) {
     { k: 'url', t: 'URL del post', tipo: 'texto', ancho: 'medio' },
     { k: 'seo', t: 'Palabra clave SEO', tipo: 'texto', ancho: 'medio' },
   );
-  base.push({ k: 'pasos', t: 'Lista de pasos', tipo: 'pasos' });
+  base.push({ k: 'pasos', t: 'Tareas', tipo: 'pasos' });
   base.push({ k: 'notas', t: 'Notas', tipo: 'area', filas: 2 });
   return base;
 }
@@ -309,7 +309,7 @@ const ABIERTOS = new Set();
 function pasosChip(x) {
   const ps = (x.ref && x.ref.pasos) || []; if (!ps.length) return '';
   const h = ps.filter(p => p.hecho).length;
-  return `<button class="pasos-chip ${h === ps.length ? 'completo' : ''}" data-pasos title="Ver los pasos">☑ ${h}/${ps.length}</button>`;
+  return `<button class="pasos-chip ${h === ps.length ? 'completo' : ''}" data-pasos title="Ver las tareas">☑ ${h}/${ps.length}</button>`;
 }
 function pasosAbiertos(x) {
   const ps = (x.ref && x.ref.pasos) || [];
@@ -328,7 +328,7 @@ function enlazarItems(cont, lista) {
       if (cp) {
         e.stopPropagation();
         const p = x.ref.pasos[+cp.dataset.paso]; p.hecho = cp.checked; cambio();
-        if (x.ref.pasos.every(q => q.hecho) && !esHecho(x.ref.estado)) aviso('Todos los pasos hechos', { t: 'Marcar tarea hecha', fn: () => alternarHecho(x) });
+        if (x.ref.pasos.every(q => q.hecho) && !esHecho(x.ref.estado)) aviso('Todas las tareas hechas', { t: 'Marcar tarea hecha', fn: () => alternarHecho(x) });
         return;
       }
       if (e.target.closest('.pasos-lista')) { e.stopPropagation(); return; }
