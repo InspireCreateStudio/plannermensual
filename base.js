@@ -179,3 +179,20 @@ function pestanas(lista, actual, clave) {
 function enlazarPestanas(cont) {
   $$('.pestanas[data-clave]', cont).forEach(p => p.onclick = (e) => { const b = e.target.closest('[data-p]'); if (!b) return; UI[p.dataset.clave] = b.dataset.p; guardarUI(); pintar(); });
 }
+
+// Elegir otro día: atajos (mañana, lunes…) o una fecha concreta
+function pedirFecha(titulo, desde = hoy()) {
+  return new Promise(res => {
+    let r = null;
+    const base = desde && desde > hoy() ? desde : hoy();
+    const ops = [['Mañana', sumarDias(hoy(), 1)], ['Pasado mañana', sumarDias(hoy(), 2)], ['El lunes que viene', sumarDias(lunesDe(hoy()), 7)], ['Dentro de una semana', sumarDias(base, 7)]];
+    if (ops[3][1] === ops[2][1]) ops[3] = ['Dentro de dos semanas', sumarDias(base, 14)];
+    modal(`<h3>${esc(titulo)}</h3><div class="atajos-fecha">${ops.map(([t, f], i) => `<button class="btn" data-f="${f}">${t}<small>${fechaLarga(f)}</small></button>`).join('')}</div>
+      <label class="campo"><span>O elige el día</span><input type="date" id="pf-v" value="${esc(sumarDias(base, 1))}"></label>
+      <div class="pie"><button class="btn" data-cerrar>Cancelar</button><button class="btn prim" id="pf-ok">Mover a ese día</button></div>`,
+      { alAbrir: (m, cerrar) => {
+        $$('[data-f]', m).forEach(b => b.onclick = () => { r = b.dataset.f; cerrar(); });
+        $('#pf-ok', m).onclick = () => { r = $('#pf-v', m).value || null; cerrar(); };
+      }, alCerrar: () => res(r) });
+  });
+}

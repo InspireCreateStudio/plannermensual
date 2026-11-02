@@ -25,7 +25,7 @@ function formulario(obj, campos) {
     return `<label class="${cl}"><span>${esc(c.t)}</span>${input}${c.ayuda ? `<small>${c.ayuda}</small>` : ''}</label>`;
   }).join('')}</div>`;
 }
-const filaPasoEd = (p) => `<li data-id="${esc(p.id || uid())}"><input type="checkbox"${p.hecho ? ' checked' : ''} aria-label="Hecho"><input class="texto-paso" value="${esc(p.t)}"><button type="button" class="icono" data-quitar-paso title="Quitar">✕</button></li>`;
+const filaPasoEd = (p) => `<li data-id="${esc(p.id || uid())}"><input type="checkbox"${p.hecho ? ' checked' : ''} aria-label="Hecho"><input class="texto-paso" value="${esc(p.t)}"><button type="button" class="icono" data-mover-paso="-1" title="Subir">↑</button><button type="button" class="icono" data-mover-paso="1" title="Bajar">↓</button><button type="button" class="icono" data-quitar-paso title="Quitar">✕</button></li>`;
 function enlazarPasosEd(m) {
   $$('.pasos-ed', m).forEach(ed => {
     const ul = $('ul', ed), nuevo = $('.nuevo-paso', ed);
@@ -36,7 +36,13 @@ function enlazarPasosEd(m) {
       ul.insertAdjacentHTML('beforeend', filaPasoEd({ id: uid(), t, hecho: false })); nuevo.value = '';
     });
     ul.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('texto-paso')) { e.preventDefault(); e.stopPropagation(); nuevo.focus(); } });
-    ul.addEventListener('click', (e) => { const b = e.target.closest('[data-quitar-paso]'); if (b) b.closest('li').remove(); });
+    ul.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-quitar-paso]'); if (b) { b.closest('li').remove(); return; }
+      const mv = e.target.closest('[data-mover-paso]'); if (!mv) return;
+      const li = mv.closest('li');
+      if (mv.dataset.moverPaso === '-1' && li.previousElementSibling) li.parentNode.insertBefore(li, li.previousElementSibling);
+      if (mv.dataset.moverPaso === '1' && li.nextElementSibling) li.parentNode.insertBefore(li.nextElementSibling, li);
+    });
   });
 }
 function leerFormulario(m, campos, obj) {
@@ -146,8 +152,22 @@ function editarTarea(t, { nueva = false } = {}) {
       if (nueva) aviso(`Apuntada en ${catDe(fin.cat).n}${fin.fecha ? ' · ' + fechaCorta(fin.fecha) : ''}`);
     },
     onBorrar: nueva ? null : async () => { borrarConDeshacer('tareas', t.id, 'Tarea borrada'); return true; },
-    extras: nueva ? [] : [{ t: 'Duplicar', fn: (r, cerrar) => { cerrar(); editarTarea({ ...r, cat: catPorEtiqueta(r.cat), id: null, estado: estadoInicial(catPorEtiqueta(r.cat)) }, { nueva: true }); } }],
+    extras: nueva ? [] : [
+      { t: '📅 Posponer', fn: async (r, cerrar) => { const f = await pedirFecha('¿A qué día la pasas?', r.fecha); if (!f) return; cerrar(); const o = D.tareas.find(x => x.id === t.id); if (o && r.tarea) { Object.keys(o).forEach(k => { if (k !== 'id') delete o[k]; }); Object.assign(o, r, { cat: catPorEtiqueta(r.cat) }); } posponerTarea(t.id, f); } },
+      { t: 'Duplicar', fn: (r, cerrar) => { cerrar(); editarTarea({ ...r, cat: catPorEtiqueta(r.cat), id: null, estado: estadoInicial(catPorEtiqueta(r.cat)) }, { nueva: true }); } }],
   });
+}
+function posponerTarea(id, f) {
+  const t = D.tareas.find(x => x.id === id); if (!t) return;
+  const antes = t.fecha; t.fecha = f; cambio();
+  aviso(`Pasada al ${fechaLarga(f).toLowerCase()}`, { t: 'Deshacer', fn: () => { t.fecha = antes; cambio(); } });
+}
+// Saca una de las tareas de dentro y la apunta sola en otro día
+function posponerPaso(t, i, f) {
+  const [p] = t.pasos.splice(i, 1); if (!t.pasos.length) delete t.pasos;
+  const nueva = { id: uid(), tarea: p.t, cat: t.cat, fecha: f, prioridad: t.prioridad, energia: t.energia, estado: estadoInicial(t.cat), notas: `Venía de «${t.tarea}»` };
+  D.tareas.push(nueva); cambio();
+  aviso(`«${p.t}» pasa al ${fechaLarga(f).toLowerCase()}`, { t: 'Deshacer', fn: () => { D.tareas = D.tareas.filter(x => x.id !== nueva.id); (t.pasos || (t.pasos = [])).splice(i, 0, p); cambio(); } });
 }
 function nuevaTarea(pre = {}) {
   const cat = pre.cat || UI.ultimaCat || 'novela';
@@ -314,7 +334,7 @@ function pasosChip(x) {
 function pasosAbiertos(x) {
   const ps = (x.ref && x.ref.pasos) || [];
   if (!ps.length || !ABIERTOS.has(x.id)) return '';
-  return `<ul class="pasos-lista">${ps.map((p, i) => `<li class="${p.hecho ? 'hecho' : ''}"><label><input type="checkbox" data-paso="${i}"${p.hecho ? ' checked' : ''}> <span>${esc(p.t)}</span></label></li>`).join('')}</ul>`;
+  return `<ul class="pasos-lista">${ps.map((p, i) => `<li class="${p.hecho ? 'hecho' : ''}"><label><input type="checkbox" data-paso="${i}"${p.hecho ? ' checked' : ''}> <span>${esc(p.t)}</span></label><span class="acc-paso">${i ? `<button data-pmov="${i}" data-dir="-1" title="Subir">↑</button>` : ''}${i < ps.length - 1 ? `<button data-pmov="${i}" data-dir="1" title="Bajar">↓</button>` : ''}${x.tipo === 'tarea' && !p.hecho ? `<button data-ppos="${i}" title="Pasar a otro día">📅</button>` : ''}</span></li>`).join('')}</ul>`;
 }
 // Clic en la casilla → hecho; clic en el resto → abrir ficha
 function enlazarItems(cont, lista) {
@@ -331,6 +351,14 @@ function enlazarItems(cont, lista) {
         if (x.ref.pasos.every(q => q.hecho) && !esHecho(x.ref.estado)) aviso('Todas las tareas hechas', { t: 'Marcar tarea hecha', fn: () => alternarHecho(x) });
         return;
       }
+      const pm = e.target.closest('[data-pmov]');
+      if (pm) {
+        e.stopPropagation(); const i = +pm.dataset.pmov, j = i + +pm.dataset.dir, ps = x.ref.pasos;
+        if (j >= 0 && j < ps.length) { [ps[i], ps[j]] = [ps[j], ps[i]]; cambio(); }
+        return;
+      }
+      const pp = e.target.closest('[data-ppos]');
+      if (pp) { e.stopPropagation(); pedirFecha(`¿A qué día pasas «${x.ref.pasos[+pp.dataset.ppos].t}»?`, x.ref.fecha).then(f => { if (f) posponerPaso(x.ref, +pp.dataset.ppos, f); }); return; }
       if (e.target.closest('.pasos-lista')) { e.stopPropagation(); return; }
       if (e.target.closest('[data-check]')) {
         e.stopPropagation();
