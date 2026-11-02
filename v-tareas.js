@@ -30,13 +30,23 @@ VISTAS.tareas = (cont) => {
 
   // Meses con algo, para el selector
   const meses = [...new Set(elementos({ conEventos: false }).map(x => mesDe(x.fecha)).filter(Boolean))].sort();
-  const cats = [['todas', 'Todas'], ...Object.keys(CATS).map(k => [k, `${CATS[k].e} ${CATS[k].n}`]), ['redes', `${CAT_REDES.e} Redes`], ['eventos', `${CAT_EVENTO.e} Eventos`]];
+  const cats = [['todas', 'Todas'], ['rapida', '📝 Lista rápida'], ...Object.keys(CATS).map(k => [k, `${CATS[k].e} ${CATS[k].n}`]), ['redes', `${CAT_REDES.e} Redes`], ['eventos', `${CAT_EVENTO.e} Eventos`]];
+  if (cat === 'rapida') {
+    cont.innerHTML = `<div class="pagina tareas">
+      ${cabecera('📝 Lista rápida', 'Cosas sueltas sin fecha ni categoría: apúntalas y táchalas.', '')}
+      <div class="chips-cat">${cats.map(([k, t]) => `<button data-cat="${k}" class="${k === cat ? 'on' : ''}" style="--c:${k === 'todas' || k === 'rapida' ? 'var(--acento)' : catDe(k).color}">${t}</button>`).join('')}</div>
+      <section class="tarjeta">${listaRapidaHTML()}</section></div>`;
+    $$('[data-cat]', cont).forEach(b => b.onclick = () => { UI.tCat = b.dataset.cat; if (b.dataset.cat in CATS) UI.ultimaCat = b.dataset.cat; guardarUI(); pintar(); });
+    enlazarListaRapida(cont);
+    if (!D.rapida.length) $('.rapida-nueva', cont).focus();
+    return;
+  }
   const C = cat !== 'todas' ? catDe(cat) : null;
 
   cont.innerHTML = `<div class="pagina tareas">
     ${cabecera(C ? `${C.e} ${esc(C.n)}` : 'Tareas', C ? subCat(cat) : 'Todas tus tareas juntas: elige una categoría para ver solo las suyas.',
       `<button class="btn prim" id="ta-nueva">+ ${cat === 'redes' ? 'Pieza' : cat === 'eventos' ? 'Evento' : 'Tarea'}</button>`)}
-    <div class="chips-cat">${cats.map(([k, t]) => `<button data-cat="${k}" class="${k === cat ? 'on' : ''}" style="--c:${k === 'todas' ? 'var(--acento)' : catDe(k).color}">${t}${cuentaCat[k] && k !== 'todas' ? `<i>${cuentaCat[k]}</i>` : ''}</button>`).join('')}</div>
+    <div class="chips-cat">${cats.map(([k, t]) => `<button data-cat="${k}" class="${k === cat ? 'on' : ''}" style="--c:${k === 'todas' || k === 'rapida' ? 'var(--acento)' : catDe(k).color}">${t}${k === 'rapida' && D.rapida.some(r => !r.hecho) ? `<i>${D.rapida.filter(r => !r.hecho).length}</i>` : ''}${cuentaCat[k] && k !== 'todas' ? `<i>${cuentaCat[k]}</i>` : ''}</button>`).join('')}</div>
     <div class="barra-filtros">
       <div class="segmentado">${FILTROS_ESTADO.map(([k, t]) => `<button data-est="${k}" class="${k === est ? 'on' : ''}">${t}</button>`).join('')}</div>
       <select id="ta-mes" aria-label="Mes"><option value="">Todos los meses</option>${meses.map(m => `<option value="${m}"${m === mes ? ' selected' : ''}>${nombreMes(m)}</option>`).join('')}</select>

@@ -457,3 +457,28 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
   .gcal { grid-template-columns: 1fr; gap: 2px; margin-bottom: 6px; }
 }
 @media (hover: none) { .compra li .icono { opacity: .6; } }
+
+/* ---------- subtareas (pasos) ---------- */
+.pasos-ed ul { list-style: none; margin: 4px 0 6px; padding: 0; display: grid; gap: 4px; }
+.pasos-ed li { display: flex; align-items: center; gap: 8px; }
+.pasos-ed li .texto-paso { flex: 1; }
+.pasos-ed li:has(input:checked) .texto-paso { text-decoration: line-through; color: var(--tenue); }
+.pasos-ed .icono { border: 0; background: none; color: var(--tenue); cursor: pointer; padding: 2px 6px; }
+.pasos-chip { border: 1px solid var(--linea-fuerte); background: var(--hoja); border-radius: 999px; padding: 0 8px; font-size: 12px; cursor: pointer; color: var(--suave); }
+.pasos-chip.completo { color: var(--verde); border-color: var(--verde); }
+.pasos-lista { list-style: none; margin: 6px 0 2px; padding: 0 0 0 2px; display: grid; gap: 3px; font-size: 14px; }
+.pasos-lista label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.pasos-lista li.hecho span { text-decoration: line-through; color: var(--tenue); }
+
+/* ---------- lista rápida ---------- */
+.rapida-nueva { width: 100%; margin-bottom: 8px; }
+.rapida ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rapida li { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid var(--linea); }
+.rapida li .rt { flex: 1; cursor: text; }
+.rapida li.hecho .rt { text-decoration: line-through; color: var(--tenue); }
+.rapida li.hecho .check { background: var(--verde); border-color: var(--verde); }
+.rapida li .icono { border: 0; background: none; color: var(--tenue); cursor: pointer; opacity: .5; }
+.rapida li:hover .icono { opacity: 1; }
+.rapida-hechas { margin-top: 14px; }
+.rapida .peq { font-size: 13px; margin: 8px 0 0; }
+.rapida button.enlace { border: 0; background: none; padding: 0; color: var(--acento); cursor: pointer; font: inherit; }

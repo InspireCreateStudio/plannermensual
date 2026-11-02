@@ -4,7 +4,7 @@
 //  el móvil), atajos, copia automática y modo sin conexión.
 // =====================================================================
 
-const VERSION_APP = '1.6';
+const VERSION_APP = '1.7';
 
 (async function arrancar() {
   try { D = await Store.get('datos'); } catch (e) { console.error(e); }
@@ -38,6 +38,7 @@ const VERSION_APP = '1.6';
     if (vistaActual === 'descarga') return apunteRapido();
     if (vistaActual === 'calendario') return nuevaTarea({ fecha: UI.calDia || hoy() });
     if (vistaActual === 'casa') return nuevaTarea({ cat: 'casa' });
+    if (vistaActual === 'tareas' && UI.tCat === 'rapida') { const n = rapidaVisible(); if (n) n.focus(); return; }
     nuevaTarea(vistaActual === 'tareas' && UI.tCat in CATS ? { cat: UI.tCat } : {});
   };
 

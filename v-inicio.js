@@ -62,6 +62,7 @@ VISTAS.inicio = (cont) => {
       </div>
       <div class="col">
         <section class="tarjeta">${miniMes(ym)}</section>
+        <section class="tarjeta"><div class="t-cab"><h2>📝 Lista rápida</h2><a href="#" class="enlace" id="in-rapida">Abrir</a></div>${listaRapidaHTML({ compacta: true })}</section>
         <section class="tarjeta"><div class="t-cab"><h2>⭐ Próximas fechas clave</h2><a href="#eventos" class="enlace">Eventos</a></div>
           ${fechasClave.length ? `<ul class="claves">${fechasClave.map(e => `<li><b>${fechaDM(e.fecha)}</b><span>${puntoCal(e.cal)} ${esc(e.titulo)}</span><i>${diasEntre(H, e.fecha) === 0 ? 'hoy' : 'en ' + plural(diasEntre(H, e.fecha), 'día', 'días')}</i></li>`).join('')}</ul>` : '<p class="vacio">Sin fechas clave próximas</p>'}</section>
         <section class="tarjeta"><div class="t-cab"><h2>🎯 Objetivos de ${MESES[Mm - 1]} · ${objs.filter(o => esHecho(o.estado)).length}/${objs.length}</h2><a href="#objetivos" class="enlace">Ver todos</a></div>
@@ -90,6 +91,8 @@ VISTAS.inicio = (cont) => {
       editarObjetivo(o);
     };
   });
+  enlazarListaRapida(cont);
+  $('#in-rapida', cont).onclick = (e) => { e.preventDefault(); UI.tCat = 'rapida'; guardarUI(); irA('tareas'); };
   enlazarMiniMes(cont);
 };
 

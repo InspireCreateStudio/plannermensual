@@ -8,6 +8,8 @@
 function formulario(obj, campos) {
   return `<div class="form">${campos.map(c => {
     if (c.tipo === 'sep') return `<h4 class="sep-form">${esc(c.t)}</h4>`;
+    if (c.tipo === 'pasos') return `<div class="campo pasos-ed" data-k="${c.k}"><span>${esc(c.t)}</span><ul>${(obj[c.k] || []).map(p => filaPasoEd(p)).join('')}</ul>
+      <input class="nuevo-paso" placeholder="Añadir un paso y pulsar Enter"></div>`;
     const v = obj[c.k] ?? '';
     const id = 'f-' + c.k;
     const cl = `campo ${c.ancho || ''}`;
@@ -23,9 +25,31 @@ function formulario(obj, campos) {
     return `<label class="${cl}"><span>${esc(c.t)}</span>${input}${c.ayuda ? `<small>${c.ayuda}</small>` : ''}</label>`;
   }).join('')}</div>`;
 }
+const filaPasoEd = (p) => `<li data-id="${esc(p.id || uid())}"><input type="checkbox"${p.hecho ? ' checked' : ''} aria-label="Hecho"><input class="texto-paso" value="${esc(p.t)}"><button type="button" class="icono" data-quitar-paso title="Quitar">✕</button></li>`;
+function enlazarPasosEd(m) {
+  $$('.pasos-ed', m).forEach(ed => {
+    const ul = $('ul', ed), nuevo = $('.nuevo-paso', ed);
+    nuevo.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault(); e.stopPropagation();
+      const t = nuevo.value.trim(); if (!t) return;
+      ul.insertAdjacentHTML('beforeend', filaPasoEd({ id: uid(), t, hecho: false })); nuevo.value = '';
+    });
+    ul.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.classList.contains('texto-paso')) { e.preventDefault(); e.stopPropagation(); nuevo.focus(); } });
+    ul.addEventListener('click', (e) => { const b = e.target.closest('[data-quitar-paso]'); if (b) b.closest('li').remove(); });
+  });
+}
 function leerFormulario(m, campos, obj) {
   campos.forEach(c => {
     if (!c.k) return;
+    if (c.tipo === 'pasos') {
+      const ed = $(`.pasos-ed[data-k="${c.k}"]`, m); if (!ed) return;
+      const pend = $('.nuevo-paso', ed).value.trim();
+      const pasos = $$('li', ed).map(li => ({ id: li.dataset.id, t: $('.texto-paso', li).value.trim(), hecho: $('input[type=checkbox]', li).checked })).filter(p => p.t);
+      if (pend) pasos.push({ id: uid(), t: pend, hecho: false });
+      if (pasos.length) obj[c.k] = pasos; else delete obj[c.k];
+      return;
+    }
     const i = $(`[data-k="${c.k}"]`, m); if (!i) return;
     let v = c.tipo === 'check' ? i.checked : i.value;
     if (c.tipo === 'num') v = v === '' ? '' : Number(v);
@@ -48,6 +72,7 @@ function ficha({ titulo, obj, campos, onGuardar, onBorrar, extras = [], clase = 
       m.addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ok(); if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') { e.preventDefault(); ok(); } });
       if (onBorrar) $('#fi-borrar', m).onclick = async () => { if (await onBorrar()) cerrar(); };
       $$('[data-extra]', m).forEach(b => b.onclick = () => { const r = leerFormulario(m, campos, copia); extras[+b.dataset.extra].fn(r, cerrar, m); });
+      enlazarPasosEd(m);
       campos.forEach(c => { if (c.alCambiar) { const i = $(`[data-k="${c.k}"]`, m); if (i) i.addEventListener('change', () => c.alCambiar(i.value, m)); } });
     }
   });
@@ -91,6 +116,7 @@ function camposTarea(cat) {
     { k: 'url', t: 'URL del post', tipo: 'texto', ancho: 'medio' },
     { k: 'seo', t: 'Palabra clave SEO', tipo: 'texto', ancho: 'medio' },
   );
+  base.push({ k: 'pasos', t: 'Lista de pasos', tipo: 'pasos' });
   base.push({ k: 'notas', t: 'Notas', tipo: 'area', filas: 2 });
   return base;
 }
@@ -272,10 +298,23 @@ function filaElemento(x, { fecha = true, franja = false, plazoVis = true, notas 
     <button class="check" data-check title="${hecho ? 'Marcar como pendiente' : 'Marcar como hecha'}" aria-label="Hecha">${hecho ? '✓' : ''}</button>
     <div class="cuerpo">
       <div class="t1">${x.punto ? `<span class="punto">${x.punto}</span>` : ''}${x.hora ? `<span class="hora">${esc(x.hora)}</span>` : ''}${esc(x.titulo) || '<i class="tenue">sin título</i>'}</div>
-      <div class="t2">${chipCat(x.cat, true)}${fecha && x.fecha ? `<span>${fechaCorta(x.fecha)}</span>` : ''}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.estado && !hecho ? `<span>${esc(x.estado)}</span>` : ''}${fr ? `<span>${iconoFranja(fr)} ${esc(fr)}</span>` : ''}${notas && x.notas ? `<span class="tenue">${esc(x.notas)}</span>` : ''}</div>
+      <div class="t2">${chipCat(x.cat, true)}${fecha && x.fecha ? `<span>${fechaCorta(x.fecha)}</span>` : ''}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.estado && !hecho ? `<span>${esc(x.estado)}</span>` : ''}${fr ? `<span>${iconoFranja(fr)} ${esc(fr)}</span>` : ''}${notas && x.notas ? `<span class="tenue">${esc(x.notas)}</span>` : ''}${pasosChip(x)}</div>
+      ${pasosAbiertos(x)}
     </div>
     <div class="lado">${x.prioridad && /Alta/.test(x.prioridad) && !hecho ? '<span class="prio" title="Prioridad alta">!</span>' : ''}${plazoVis && p.t && p.c !== 'hecho' ? `<span class="plazo ${p.c}">${p.t}</span>` : ''}${x.energia && /Baja/.test(x.energia) && !hecho ? '<span title="Energía baja">🪫</span>' : ''}</div>
   </div>`;
+}
+// Subtareas: «☑ 2/5» y, al tocarlo, la lista para ir marcando
+const ABIERTOS = new Set();
+function pasosChip(x) {
+  const ps = (x.ref && x.ref.pasos) || []; if (!ps.length) return '';
+  const h = ps.filter(p => p.hecho).length;
+  return `<button class="pasos-chip ${h === ps.length ? 'completo' : ''}" data-pasos title="Ver los pasos">☑ ${h}/${ps.length}</button>`;
+}
+function pasosAbiertos(x) {
+  const ps = (x.ref && x.ref.pasos) || [];
+  if (!ps.length || !ABIERTOS.has(x.id)) return '';
+  return `<ul class="pasos-lista">${ps.map((p, i) => `<li class="${p.hecho ? 'hecho' : ''}"><label><input type="checkbox" data-paso="${i}"${p.hecho ? ' checked' : ''}> <span>${esc(p.t)}</span></label></li>`).join('')}</ul>`;
 }
 // Clic en la casilla → hecho; clic en el resto → abrir ficha
 function enlazarItems(cont, lista) {
@@ -284,6 +323,15 @@ function enlazarItems(cont, lista) {
   $$('.item[data-id]', cont).forEach(n => {
     const x = porClave.get(n.dataset.tipo + ':' + n.dataset.id); if (!x) return;
     n.onclick = (e) => {
+      if (e.target.closest('[data-pasos]')) { e.stopPropagation(); ABIERTOS.has(x.id) ? ABIERTOS.delete(x.id) : ABIERTOS.add(x.id); pintar(); return; }
+      const cp = e.target.closest('[data-paso]');
+      if (cp) {
+        e.stopPropagation();
+        const p = x.ref.pasos[+cp.dataset.paso]; p.hecho = cp.checked; cambio();
+        if (x.ref.pasos.every(q => q.hecho) && !esHecho(x.ref.estado)) aviso('Todos los pasos hechos', { t: 'Marcar tarea hecha', fn: () => alternarHecho(x) });
+        return;
+      }
+      if (e.target.closest('.pasos-lista')) { e.stopPropagation(); return; }
       if (e.target.closest('[data-check]')) {
         e.stopPropagation();
         const ahora = alternarHecho(x);
