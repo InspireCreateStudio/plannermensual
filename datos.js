@@ -178,7 +178,8 @@ function extraDe(f) {
     .sort((a, b) => (a.ini || '').localeCompare(b.ini || ''))
     .map(a => `${a.que} ${a.quien}${a.ini ? ` ${a.ini}${a.fin ? '-' + a.fin : ''}` : ''}`.trim()).join('; ');
 }
-const iconoFranja = (fr) => !fr ? '' : /Mañana\s*\/\s*Tarde|D[ií]a libre/i.test(fr) ? '🌤️' : /^Mañana/i.test(fr) ? '☀️' : /^Tarde/i.test(fr) ? '🌙' : /Fin de semana/i.test(fr) ? '🛋️' : /Festivo/i.test(fr) ? '🎉' : /Sin hueco/i.test(fr) ? '⛔' : '🕘';
+const FRANJAS_OP = ['Mañana libre', 'Tarde libre', 'Mañana/Tarde libre', 'Solo mañana disponible', 'Solo tarde disponible', 'Día libre', 'Festivo', 'Sin hueco'];
+const iconoFranja = (fr) => !fr ? '' : /Solo mañana/i.test(fr) ? '☀️' : /Solo tarde/i.test(fr) ? '🌙' : /Mañana\s*\/\s*Tarde|D[ií]a libre/i.test(fr) ? '🌤️' : /^Mañana/i.test(fr) ? '☀️' : /^Tarde/i.test(fr) ? '🌙' : /Fin de semana/i.test(fr) ? '🛋️' : /Festivo/i.test(fr) ? '🎉' : /Sin hueco/i.test(fr) ? '⛔' : '🕘';
 
 // ---------- todo junto (lo que en el Excel era «Vista global») ----------
 // Cada elemento: { tipo, id, cat, fecha, hora, titulo, sub, estado, prioridad, energia, notas, ref }

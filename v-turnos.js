@@ -30,15 +30,15 @@ VISTAS.turnos = (cont) => {
         </div>`;
       }).join('')}
     </div>
-    <datalist id="tu-franjas"><option value="Mañana libre"><option value="Tarde libre"><option value="Mañana/Tarde libre"><option value="Día libre"><option value="Festivo"><option value="Sin hueco"></datalist>
+    <datalist id="tu-franjas">${FRANJAS_OP.map(o => `<option value="${o}">`).join('')}</datalist>
     <p class="tenue">En gris, lo que sale solo; escribe encima para cambiar solo ese día. Borra lo escrito para volver a lo automático.</p>
 
     <section class="tarjeta reglas"><h2>Reglas</h2>
       <div class="form">
         <label class="campo medio"><span>Una semana de referencia (su lunes)</span><input type="date" id="tu-ref" value="${esc(R.rotacion.lunes || '')}"></label>
         <label class="campo medio"><span>Turno esa semana</span><select id="tu-reft"><option value="MAÑANA"${R.rotacion.turno === 'MAÑANA' ? ' selected' : ''}>Mañana</option><option value="TARDE"${R.rotacion.turno === 'TARDE' ? ' selected' : ''}>Tarde</option></select></label>
-        <label class="campo medio"><span>Si tu pareja tiene turno de mañana, tú tienes…</span><input id="tu-frm" value="${esc(R.franjas['MAÑANA'] || '')}" list="tu-franjas"></label>
-        <label class="campo medio"><span>Si tiene turno de tarde, tú tienes…</span><input id="tu-frt" value="${esc(R.franjas['TARDE'] || '')}" list="tu-franjas"></label>
+        <label class="campo medio"><span>Si tu pareja tiene turno de mañana, tú tienes…</span>${selFranja('tu-frm', R.franjas['MAÑANA'])}</label>
+        <label class="campo medio"><span>Si tiene turno de tarde, tú tienes…</span>${selFranja('tu-frt', R.franjas['TARDE'])}</label>
         <label class="campo"><span>Usar las reglas a partir del</span><input type="date" id="tu-desde" value="${esc(R.reglasDesde || '')}"><small>Antes de esa fecha manda lo que hay apuntado día a día (lo que traje del Excel o de Google Calendar). Los turnos van alternando cada semana.</small></label>
       </div>
       <h4 class="sep-form">Extraescolares</h4>
@@ -72,8 +72,12 @@ VISTAS.turnos = (cont) => {
   const regla = (id, fn) => { $(id, cont).onchange = (e) => { fn(e.target.value); cambio(); }; };
   regla('#tu-ref', v => { R.rotacion.lunes = v ? lunesDe(v) : ''; });
   regla('#tu-reft', v => { R.rotacion.turno = v; });
-  regla('#tu-frm', v => { R.franjas['MAÑANA'] = v; });
-  regla('#tu-frt', v => { R.franjas['TARDE'] = v; });
+  const reglaFranja = (id, turno) => { $(id, cont).onchange = async (e) => {
+    let v = e.target.value;
+    if (v === '__otra') { v = await pedirTexto('Escribe tu franja', R.franjas[turno] || '', 'Por ejemplo: Solo mañana disponible'); if (v === null) return pintar(); }
+    R.franjas[turno] = v; cambio(); }; };
+  reglaFranja('#tu-frm', 'MAÑANA');
+  reglaFranja('#tu-frt', 'TARDE');
   regla('#tu-desde', v => { R.reglasDesde = v; });
   $$('.actividad', cont).forEach(n => {
     const a = R.actividades[+n.dataset.a];
@@ -83,3 +87,8 @@ VISTAS.turnos = (cont) => {
   });
   $('#tu-addact', cont).onclick = () => { R.actividades.push({ que: '', quien: '', dias: [] }); cambio(); };
 };
+
+function selFranja(id, v = '') {
+  const ops = FRANJAS_OP.includes(v) || !v ? FRANJAS_OP : [v, ...FRANJAS_OP];
+  return `<select id="${id}"><option value=""${!v ? ' selected' : ''}>—</option>${ops.map(o => `<option${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}<option value="__otra">✏️ Escribir otra…</option></select>`;
+}
