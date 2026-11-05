@@ -16,6 +16,12 @@ VISTAS.casa = (cont) => {
 };
 
 // ---------- lista de la compra ----------
+// Añade un artículo; si ya estaba (comprado), lo vuelve a poner y recuerda su súper y su tipo
+function anadirCompra(a, sup = '', cat = '') {
+  const previo = D.compra.find(i => quitarTildes(i.articulo) === quitarTildes(a));
+  if (previo) { previo.comprado = false; if (sup) previo.super = sup; if (cat) previo.cat = cat; }
+  else D.compra.push({ id: uid(), articulo: a, super: sup, cat, comprado: false });
+}
 function casaCompra(c) {
   const porSuper = UI.cAgrupar !== 'cat';
   const grupos = new Map();
@@ -36,10 +42,7 @@ function casaCompra(c) {
     e.preventDefault();
     const a = $('#co-art', c).value.trim(); if (!a) return;
     // Si ya lo compraste antes, recuerda su súper y su tipo
-    const previo = D.compra.find(i => quitarTildes(i.articulo) === quitarTildes(a));
-    const sup = $('#co-super', c).value || (previo && previo.super) || '', cat = $('#co-cat', c).value || (previo && previo.cat) || '';
-    if (previo) { previo.comprado = false; if (sup) previo.super = sup; if (cat) previo.cat = cat; }
-    else D.compra.push({ id: uid(), articulo: a, super: sup, cat, comprado: false });
+    anadirCompra(a, $('#co-super', c).value, $('#co-cat', c).value);
     UI.cUltSuper = $('#co-super', c).value; guardarUI(); cambio();
     setTimeout(() => $('#co-art').focus(), 40);
   };
@@ -72,7 +75,7 @@ function casaMenu(c) {
     ${semanas.map((s, i) => {
       const k = s[0]; const co = D.cocina[k] || {};
       return `<section class="tarjeta semana-menu">
-        <div class="t-cab"><h2>🍽️ Semana ${i + 1} · ${fechaDM(s[0])} – ${fechaDM(s[6])}</h2></div>
+        <div class="t-cab"><h2>🍽️ Semana ${i + 1} · ${fechaDM(s[0])} – ${fechaDM(s[6])}</h2><button class="btn peq" data-hacer-compra="${k}">🛒 Preparar la compra</button></div>
         <div class="cocina"><label class="campo medio"><span>🍳 Batch: qué cocinas</span><input data-coc="${k}" data-ck="cocinas" value="${esc(co.cocinas || '')}" placeholder="p. ej. lentejas + albóndigas"></label>
           <label class="campo medio"><span>🧊 Qué tengo (congelador / despensa)</span><input data-coc="${k}" data-ck="tengo" value="${esc(co.tengo || '')}" list="me-tengo"></label></div>
         <div class="tabla-menu" style="--n:${verComidas.length}"><div></div>${COMIDAS.filter(([k]) => verComidas.includes(k)).map(([, t]) => `<div class="cab">${t}</div>`).join('')}
@@ -94,6 +97,7 @@ function casaMenu(c) {
     o[i.dataset.ck] = i.value.trim(); if (!o.cocinas && !o.tengo) delete D.cocina[k];
     cambio(false);
   });
+  $$('[data-hacer-compra]', c).forEach(b => b.onclick = () => compraDelMenu(b.dataset.hacerCompra));
   $('#me-desp', c).onchange = (e) => { D.despensa = e.target.value.split('\n').map(s => s.trim()).filter(Boolean); cambio(false); };
 }
 
@@ -105,4 +109,55 @@ function casaTareas(c) {
   enlazarItems($('#ct-lista', c), lista);
   $('#ct-nueva', c).onclick = () => nuevaTarea({ cat: 'casa' });
   $('#ct-hechas', c).onchange = (e) => { UI.cVerHechas = e.target.checked; guardarUI(); pintar(); };
+}
+
+// ---------- del menú a la lista de la compra ----------
+const claveReceta = (p) => quitarTildes(p).toLowerCase().replace(/\s+/g, ' ').trim();
+const partirLista = (s) => (s || '').split(/[,\n;]+/).map(x => x.trim()).filter(Boolean);
+function platosDeSemana(lunes) {
+  const ps = [];
+  for (let i = 0; i < 7; i++) Object.values(D.menu[sumarDias(lunes, i)] || {}).forEach(p => ps.push(p));
+  partirLista(((D.cocina[lunes] || {}).cocinas || '').replace(/\s\+\s/g, ',')).forEach(p => ps.push(p));
+  const vistos = new Set();
+  return ps.filter(p => { const k = claveReceta(p); if (!k || vistos.has(k)) return false; vistos.add(k); return true; });
+}
+function compraDelMenu(lunes) {
+  const platos = platosDeSemana(lunes);
+  if (!platos.length) { aviso('Esa semana aún no tiene menú'); return; }
+  modal(`<h3>🛒 Compra de la semana del ${fechaDM(lunes)}</h3>
+    <p class="suave" style="margin-top:0">Lo que lleva cada plato, separado por comas. Lo que escribas se queda guardado para las próximas semanas.</p>
+    <div class="form">${platos.map((p, i) => `<label class="campo"><span>${esc(p)}</span><input data-plato="${i}" value="${esc((D.recetas[claveReceta(p)] || []).join(', '))}" placeholder="p. ej. lentejas, zanahoria, chorizo"></label>`).join('')}</div>
+    <div class="pie"><button class="btn" data-cerrar>Cancelar</button><button class="btn prim" id="cm-sig">Siguiente</button></div>`, {
+    clase: 'ficha',
+    alAbrir: (m, cerrar) => {
+      $('#cm-sig', m).onclick = () => {
+        const todos = new Map();
+        platos.forEach((p, i) => {
+          const ing = partirLista($(`[data-plato="${i}"]`, m).value);
+          if (ing.length) D.recetas[claveReceta(p)] = ing; else delete D.recetas[claveReceta(p)];
+          ing.forEach(x => { const k = quitarTildes(x).toLowerCase(); if (!todos.has(k)) todos.set(k, { x, platos: [] }); todos.get(k).platos.push(p); });
+        });
+        cambio(false); cerrar();
+        if (!todos.size) { aviso('No has puesto ingredientes'); return; }
+        elegirCompra([...todos.values()]);
+      };
+    }
+  });
+}
+function elegirCompra(lista) {
+  const yaEnLista = (x) => D.compra.some(i => !i.comprado && quitarTildes(i.articulo).toLowerCase() === quitarTildes(x).toLowerCase());
+  modal(`<h3>¿Qué te falta?</h3><p class="suave" style="margin-top:0">Quita lo que ya tienes en casa.</p>
+    <ul class="elegir-compra">${lista.map((o, i) => `<li><label><input type="checkbox" data-ing="${i}"${yaEnLista(o.x) ? '' : ' checked'}> <span>${esc(o.x)}</span></label><small>${yaEnLista(o.x) ? 'ya está en la lista' : esc(o.platos.join(', '))}</small></li>`).join('')}</ul>
+    <div class="pie"><button class="btn" data-cerrar>Cancelar</button><button class="btn prim" id="ec-ok">Añadir a la compra</button></div>`, {
+    clase: 'ficha',
+    alAbrir: (m, cerrar) => {
+      const contar = () => { $('#ec-ok', m).textContent = `Añadir ${$$('[data-ing]:checked', m).length} a la compra`; };
+      m.addEventListener('change', contar); contar();
+      $('#ec-ok', m).onclick = () => {
+        const sel = $$('[data-ing]:checked', m).map(c => lista[+c.dataset.ing].x);
+        sel.forEach(x => anadirCompra(x)); cambio(); cerrar();
+        aviso(`${plural(sel.length, 'cosa añadida', 'cosas añadidas')} a la compra`, { t: 'Ver', fn: () => { UI.cPest = 'compra'; guardarUI(); irA('casa'); } });
+      };
+    }
+  });
 }

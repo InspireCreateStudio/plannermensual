@@ -29,7 +29,7 @@ const REVISION = ['🎬 Batch de la semana hecho', '📅 Eventos revisados con e
 function datosVacios() {
   return {
     app: 'planner', version: 1,
-    tareas: [], rapida: [], descarga: [], objetivos: [], eventos: [], ideas: [], batch: [], compra: [],
+    tareas: [], rapida: [], candidaturas: [], habitos: [], habitosReg: {}, recetas: {}, descarga: [], objetivos: [], eventos: [], ideas: [], batch: [], compra: [],
     menu: {}, cocina: {}, despensa: ['❄️ Pollo troceado', '❄️ Carne picada', '❄️ Pescado blanco', '🥫 Arroz', '🥫 Pasta', '🥫 Legumbres'],
     revision: {},
     calendarios: [
@@ -48,7 +48,7 @@ function datosVacios() {
       { t: '📆 Google Calendar', url: 'https://calendar.google.com' },
       { t: '🎨 Canva', url: 'https://www.canva.com/' }],
     listas: listasPorDefecto(),
-    ajustes: { copiaDias: 7, tema: 'auto', diasClave: 4, nombre: '' },
+    ajustes: { copiaDias: 7, tema: 'auto', diasClave: 4, nombre: '', avisos: false, avisoEventos: '' },
   };
 }
 function listasPorDefecto() {
@@ -208,12 +208,48 @@ const ordenFecha = (a, b) => (a.fecha || '9999').localeCompare(b.fecha || '9999'
 const pendiente = (x) => !esHecho(x.estado) && !esAnulada(x.estado) && !(x.tipo === 'evento' && x.fecha && ((x.ref && x.ref.hasta) || x.fecha) < hoy());
 const atrasada = (x) => x.tipo !== 'evento' && pendiente(x) && x.fecha && x.fecha < hoy();
 
+// ---------- tareas que se repiten ----------
+const REPETIR = ['Cada día', 'Entre semana (lun-vie)', 'Cada semana', 'Cada 2 semanas', 'Cada mes', 'Cada año'];
+function siguienteFecha(f, rep) {
+  if (rep === 'Cada día') return sumarDias(f, 1);
+  if (/^Entre semana/.test(rep)) { let n = sumarDias(f, 1); while (diaSemana(n) >= 5) n = sumarDias(n, 1); return n; }
+  if (rep === 'Cada semana') return sumarDias(f, 7);
+  if (rep === 'Cada 2 semanas') return sumarDias(f, 14);
+  const d = aFecha(f), dia = d.getDate();
+  if (rep === 'Cada mes') { const fin = new Date(d.getFullYear(), d.getMonth() + 2, 0).getDate(); return aStr(new Date(d.getFullYear(), d.getMonth() + 1, Math.min(dia, fin))); }
+  if (rep === 'Cada año') return aStr(new Date(d.getFullYear() + 1, d.getMonth(), dia));
+  return '';
+}
+// Al marcar hecha una tarea que se repite, apunta la siguiente (una sola vez)
+function repetirTarea(t) {
+  if (!t.repetir || !t.fecha) return null;
+  if (t.siguiente && D.tareas.some(x => x.id === t.siguiente)) return null;
+  const n = JSON.parse(JSON.stringify(t));
+  n.id = uid(); n.fecha = siguienteFecha(t.fecha, t.repetir); n.estado = estadoInicial(t.cat);
+  delete n.siguiente; delete n.gid;
+  ['apertura', 'clics', 'bajas', 'ventas', 'ingresos'].forEach(k => delete n[k]);
+  (n.pasos || []).forEach(p => { p.hecho = false; p.id = uid(); });
+  D.tareas.push(n); t.siguiente = n.id;
+  return n;
+}
+// Si la desmarcas, quita la siguiente que se había apuntado (si aún no la has hecho)
+function deshacerRepeticion(t) {
+  if (!t.siguiente) return;
+  const i = D.tareas.findIndex(x => x.id === t.siguiente);
+  if (i >= 0 && !esHecho(D.tareas[i].estado)) D.tareas.splice(i, 1);
+  delete t.siguiente;
+}
+function avisoRepeticion(n) { if (n) setTimeout(() => aviso(`🔁 La siguiente queda para el ${fechaLarga(n.fecha).toLowerCase()}`), 50); }
+
 // Marcar hecho / deshacer, sea tarea, pieza o evento
 function alternarHecho(x) {
   const r = x.ref;
   if (x.tipo === 'pieza') { r.publicado = !r.publicado; if (r.publicado) { r.grabado = r.editado = r.captionListo = r.programado = true; } }
   else if (x.tipo === 'evento') r.estado = esHecho(r.estado) ? '' : '✅Completada';
-  else r.estado = esHecho(r.estado) ? estadoInicial(r.cat) : estadoHecho(r);
+  else {
+    r.estado = esHecho(r.estado) ? estadoInicial(r.cat) : estadoHecho(r);
+    if (esHecho(r.estado)) avisoRepeticion(repetirTarea(r)); else deshacerRepeticion(r);
+  }
   cambio();
   return pendiente({ estado: x.tipo === 'pieza' ? estadoPieza(r) : r.estado });
 }
@@ -231,7 +267,7 @@ function importarDatos(j, modo) {
     D = completar({ ...datosVacios(), ...nuevo, listas: { ...listasPorDefecto(), ...(nuevo.listas || {}) }, ajustes: aj });
   } else {
     // Juntar: añade lo que no esté (por id) y no toca lo que ya tienes
-    ['tareas', 'rapida', 'descarga', 'objetivos', 'eventos', 'ideas', 'batch', 'compra'].forEach(k => {
+    ['tareas', 'rapida', 'candidaturas', 'habitos', 'descarga', 'objetivos', 'eventos', 'ideas', 'batch', 'compra'].forEach(k => {
       const ids = new Set(D[k].map(o => o.id));
       (nuevo[k] || []).forEach(o => { if (!ids.has(o.id)) D[k].push(o); });
     });

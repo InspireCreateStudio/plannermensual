@@ -12,10 +12,12 @@ VISTAS.calendario = (cont) => {
   const dia = UI.calDia && (modo === 'año' || mesDe(UI.calDia) === ym || semanasDelMes(ym).flat().includes(UI.calDia)) ? UI.calDia : (mesDe(H) === ym ? H : primeroMes(ym));
   const ocultas = new Set(UI.calOcultas || []);
   const visible = (x) => !ocultas.has(x.cat);
-  const tituloNav = modo === 'año' ? ym.slice(0, 4) : nombreMes(ym);
+  if (!UI.calSemana) UI.calSemana = lunesDe(H);
+  const L = UI.calSemana;
+  const tituloNav = modo === 'año' ? ym.slice(0, 4) : modo === 'semana' ? `${fechaDM(L)} – ${fechaDM(sumarDias(L, 6))}` : nombreMes(ym);
 
   const nav = `<div class="nav-cal"><button class="icono" id="ca-ant" aria-label="Anterior">‹</button><h2 class="titulo-cal">${tituloNav}</h2><button class="icono" id="ca-sig" aria-label="Siguiente">›</button>
-    <button class="btn peq" id="ca-hoy">Hoy</button><div class="segmentado peq"><button data-modo="mes" class="${modo === 'mes' ? 'on' : ''}">Mes</button><button data-modo="año" class="${modo === 'año' ? 'on' : ''}">Año</button></div></div>`;
+    <button class="btn peq" id="ca-hoy">Hoy</button><div class="segmentado peq"><button data-modo="semana" class="${modo === 'semana' ? 'on' : ''}">Semana</button><button data-modo="mes" class="${modo === 'mes' ? 'on' : ''}">Mes</button><button data-modo="año" class="${modo === 'año' ? 'on' : ''}">Año</button></div></div>`;
   const filtros = `<div class="filtros-cal">${[...Object.keys(CATS), 'redes', 'eventos'].map(k => `<button data-oc="${k}" class="${ocultas.has(k) ? 'off' : ''}" style="--c:${catDe(k).color}" title="${esc(catDe(k).n)}">${catDe(k).e}<span> ${esc(catDe(k).n)}</span></button>`).join('')}</div>`;
 
   if (modo === 'año') {
@@ -31,6 +33,7 @@ VISTAS.calendario = (cont) => {
     return;
   }
 
+  if (modo === 'semana') return vistaSemana(cont, nav, filtros, visible);
   const semanas = semanasDelMes(ym);
   const desde = semanas[0][0], hasta = semanas[semanas.length - 1][6];
   const todo = elementos({ desde, hasta }).filter(visible);
@@ -107,13 +110,54 @@ function infoDia(f) {
   return filas.length ? `<div class="info-dia">${filas.join('')}</div>` : '';
 }
 function enlazarNav(cont, modo) {
-  const mover = (n) => { UI.calMes = modo === 'año' ? sumarMeses(UI.calMes, 12 * n) : sumarMeses(UI.calMes, n); guardarUI(); pintar(); };
+  const mover = (n) => { if (modo === 'semana') { UI.calSemana = sumarDias(UI.calSemana, 7 * n); UI.calMes = mesDe(UI.calSemana); guardarUI(); pintar(); return; } UI.calMes = modo === 'año' ? sumarMeses(UI.calMes, 12 * n) : sumarMeses(UI.calMes, n); guardarUI(); pintar(); };
   $('#ca-ant', cont).onclick = () => mover(-1);
   $('#ca-sig', cont).onclick = () => mover(1);
-  $('#ca-hoy', cont).onclick = () => { UI.calMes = mesDe(hoy()); UI.calDia = hoy(); guardarUI(); pintar(); };
+  $('#ca-hoy', cont).onclick = () => { UI.calMes = mesDe(hoy()); UI.calDia = hoy(); UI.calSemana = lunesDe(hoy()); guardarUI(); pintar(); };
   $$('[data-modo]', cont).forEach(b => b.onclick = () => { UI.calModo = b.dataset.modo; guardarUI(); pintar(); });
   $$('[data-oc]', cont).forEach(b => b.onclick = () => {
     const s = new Set(UI.calOcultas || []); s.has(b.dataset.oc) ? s.delete(b.dataset.oc) : s.add(b.dataset.oc);
     UI.calOcultas = [...s]; guardarUI(); pintar();
   });
+}
+
+// ---------- semana: 7 columnas para planificar arrastrando ----------
+function vistaSemana(cont, nav, filtros, visible) {
+  const H = hoy(), L = UI.calSemana, dias = [0, 1, 2, 3, 4, 5, 6].map(i => sumarDias(L, i));
+  const todo = elementos({ desde: L, hasta: dias[6] }).filter(visible);
+  const porDia = {};
+  todo.forEach(x => {
+    const fin = x.tipo === 'evento' && x.ref.hasta && x.ref.hasta > x.fecha ? x.ref.hasta : x.fecha;
+    for (let f = x.fecha < L ? L : x.fecha; f <= fin && f <= dias[6]; f = sumarDias(f, 1)) (porDia[f] = porDia[f] || []).push(x);
+  });
+  Object.values(porDia).forEach(l => l.sort((a, b) => (a.tipo === 'evento' ? 0 : 1) - (b.tipo === 'evento' ? 0 : 1) || ordenFecha(a, b)));
+  const sinFecha = elementos({ conEventos: false }).filter(x => !x.fecha && pendiente(x) && visible(x));
+  const atrasadas = elementos({ conEventos: false }).filter(x => atrasada(x) && x.fecha < L && visible(x));
+  const bandeja = [...atrasadas, ...sinFecha];
+  cont.innerHTML = `<div class="pagina ancha calendario">${cabecera('Calendario', 'Arrastra las tareas de un día a otro para organizar la semana.', `<button class="btn prim" id="ca-nueva">+ Tarea</button>`)}
+    ${nav}${filtros}
+    ${bandeja.length ? `<details class="bandeja tarjeta" ${UI.calBandeja === false ? '' : 'open'}><summary>📥 Por colocar: ${atrasadas.length ? plural(atrasadas.length, 'atrasada', 'atrasadas') : ''}${atrasadas.length && sinFecha.length ? ' y ' : ''}${sinFecha.length ? plural(sinFecha.length, 'sin fecha', 'sin fecha') : ''} <span class="tenue">· arrástralas a un día</span></summary><div class="lista" id="se-bandeja">${bandeja.map(x => filaElemento(x, { fecha: true, plazoVis: false })).join('')}</div></details>` : ''}
+    <div class="semana">${dias.map(f => {
+      const xs = porDia[f] || []; const fr = franjaDe(f), ex = extraDe(f);
+      return `<div class="sem-col ${f === H ? 'hoy' : ''} ${f < H ? 'pasado' : ''} ${diaSemana(f) >= 5 ? 'finde' : ''}" data-dia="${f}">
+        <div class="sem-cab"><b>${may(DIAS[diaSemana(f)]).slice(0, 3)} ${aFecha(f).getDate()}</b>${fr ? `<span title="${esc(fr)}">${iconoFranja(fr)} ${esc(fr)}</span>` : ''}${ex ? `<span>🧒 ${esc(ex)}</span>` : ''}</div>
+        <div class="lista" data-lista-dia="${f}">${xs.map(x => filaElemento(x, { fecha: false, plazoVis: false })).join('')}</div>
+        <button class="sem-mas" data-nueva-dia="${f}">+ Añadir</button></div>`;
+    }).join('')}</div></div>`;
+  enlazarNav(cont, 'semana');
+  $$('[data-lista-dia]', cont).forEach(l => enlazarItems(l, porDia[l.dataset.listaDia] || []));
+  if ($('#se-bandeja', cont)) { enlazarItems($('#se-bandeja', cont), bandeja); $('details.bandeja', cont).ontoggle = (e) => { UI.calBandeja = e.target.open; guardarUI(); }; }
+  $$('.sem-col', cont).forEach(c => {
+    c.ondragover = (e) => { e.preventDefault(); c.classList.add('soltar'); };
+    c.ondragleave = (e) => { if (!c.contains(e.relatedTarget)) c.classList.remove('soltar'); };
+    c.ondrop = (e) => {
+      e.preventDefault(); c.classList.remove('soltar');
+      const [tipo, id] = (e.dataTransfer.getData('text/plain') || '').split(':');
+      const r = buscarRef(tipo, id); if (!r || r.fecha === c.dataset.dia) return;
+      const antes = r.fecha; r.fecha = c.dataset.dia; cambio();
+      aviso(`Movida al ${fechaLarga(c.dataset.dia).toLowerCase()}`, { t: 'Deshacer', fn: () => { r.fecha = antes; cambio(); } });
+    };
+  });
+  $$('[data-nueva-dia]', cont).forEach(b => b.onclick = () => nuevaTarea({ fecha: b.dataset.nuevaDia }));
+  $('#ca-nueva', cont).onclick = () => nuevaTarea({ fecha: H >= L && H <= dias[6] ? H : L });
 }

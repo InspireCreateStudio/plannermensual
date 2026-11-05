@@ -8,7 +8,7 @@
 // =====================================================================
 
 const GOOGLE_CLIENT_ID = ''; // se puede dejar fijo aquí; si no, se pega en Ajustes
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
 const ARCHIVO = 'planner.json';
 
 const GG = {
@@ -137,7 +137,7 @@ const GCAL = 'https://www.googleapis.com/calendar/v3';
 const cfgCal = () => D.ajustes.gcal || (D.ajustes.gcal = { cals: [], meses: 6 });
 async function listarCalendarios() {
   const r = await api(`${GCAL}/users/me/calendarList?minAccessRole=reader&maxResults=250`);
-  return ((await r.json()).items || []).map(c => ({ id: c.id, nombre: c.summaryOverride || c.summary, color: c.backgroundColor }));
+  return ((await r.json()).items || []).map(c => ({ id: c.id, nombre: c.summaryOverride || c.summary, color: c.backgroundColor, escribir: c.accessRole === 'owner' || c.accessRole === 'writer', principal: !!c.primary }));
 }
 async function eventosDe(calId, desde, hasta) {
   let out = [], pt = '';
@@ -180,8 +180,8 @@ GG.traerEventos = async (manual) => {
         let e = D.eventos.find(x => x.gcalId === gid);
         // Uno igual que vino del Excel: se enlaza en vez de duplicarlo
         if (!e) e = D.eventos.find(x => !x.gcalId && x.fecha === q.fecha && normal(x.titulo) === normal(ev.summary));
-        if (!e) { D.eventos.push({ id: uid(), gcalId: gid, cal: c.local, titulo: ev.summary || '(sin título)', tipo: 'Puntual', fecha: q.fecha, hasta: q.hasta || undefined, hora: q.hora, notas: '', mantener: 'Sí', estado: '' }); nuevos++; return; }
-        e.gcalId = gid;
+        if (!e) { D.eventos.push({ id: uid(), gcalId: gid, gcalCal: c.id, cal: c.local, titulo: ev.summary || '(sin título)', tipo: 'Puntual', fecha: q.fecha, hasta: q.hasta || undefined, hora: q.hora, notas: '', mantener: 'Sí', estado: '' }); nuevos++; return; }
+        e.gcalId = gid; e.gcalCal = c.id;
         if (!e.tocado) {
           const antes = JSON.stringify([e.fecha, e.hora, e.titulo, e.hasta]);
           Object.assign(e, { fecha: q.fecha, hora: q.hora, cal: c.local });
@@ -264,18 +264,61 @@ async function elegirCalendarios() {
     <datalist id="gc-locales">${locales.map(l => `<option value="${esc(l)}">`).join('')}</datalist>
     <div class="form"><label class="campo medio"><span>Turnos de tu pareja</span><select id="gc-turnos"><option value="">Ninguno</option>${lista.map(g => `<option value="${esc(g.id)}"${C.turnos === g.id ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select></label>
       <label class="campo medio"><span>Extraescolares</span><select id="gc-extra"><option value="">Ninguno</option>${lista.map(g => `<option value="${esc(g.id)}"${C.extra === g.id ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select></label>
-      <label class="campo"><span>Traer eventos de los próximos</span><select id="gc-meses">${[3, 6, 9, 12].map(n => `<option value="${n}"${(C.meses || 6) === n ? ' selected' : ''}>${n} meses</option>`).join('')}</select></label></div>
+      <label class="campo medio"><span>Guardar en Google las citas que apunte aquí, en</span><select id="gc-destino"><option value="">No guardar en Google</option>${lista.filter(g => g.escribir).map(g => `<option value="${esc(g.id)}"${C.destino === g.id ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select></label>
+      <label class="campo medio"><span>Traer eventos de los próximos</span><select id="gc-meses">${[3, 6, 9, 12].map(n => `<option value="${n}"${(C.meses || 6) === n ? ' selected' : ''}>${n} meses</option>`).join('')}</select></label></div>
     <div class="pie"><button class="btn" data-cerrar>Cancelar</button><button class="btn prim" id="gc-ok">Guardar y traer</button></div>`, {
     clase: 'ancha',
     alAbrir: (m, cerrar) => {
       $('#gc-ok', m).onclick = () => {
         C.cals = $$('.gcal', m).map(n => { const g = lista[+n.dataset.i]; return { id: g.id, nombre: g.nombre, local: $('[data-local]', n).value.trim() || g.nombre.toUpperCase(), usar: $('[data-usar]', n).checked }; }).filter(c => c.usar || C.cals.some(x => x.id === c.id));
-        C.turnos = $('#gc-turnos', m).value; C.extra = $('#gc-extra', m).value; C.meses = +$('#gc-meses', m).value;
+        C.turnos = $('#gc-turnos', m).value; C.extra = $('#gc-extra', m).value; C.destino = $('#gc-destino', m).value; C.meses = +$('#gc-meses', m).value;
         cambio(); cerrar(); GG.traerEventos(true);
       };
     }
   });
 }
+
+// ---------- guardar en Google Calendar lo que apuntas aquí ----------
+const zonaHoraria = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Madrid'; } catch (e) { return 'Europe/Madrid'; } };
+GG.puedeEscribir = () => GG.listo() && !!cfgCal().destino;
+// Calendario de Google de un evento: el suyo si vino de allí; si no, el elegido para guardar
+const calGoogleDe = (e) => e.gcalCal || ((cfgCal().cals || []).find(c => c.local === e.cal) || {}).id || cfgCal().destino;
+function cuerpoGoogle(e) {
+  const b = { summary: e.titulo, description: e.notas || '' };
+  const m = /^(\d{1,2}):(\d{2})/.exec(e.hora || '');
+  if (m && e.fecha) {
+    const ini = `${e.fecha}T${pad(+m[1])}:${m[2]}:00`;
+    const f = new Date(+e.fecha.slice(0, 4), +e.fecha.slice(5, 7) - 1, +e.fecha.slice(8, 10), +m[1] + 1, +m[2]);
+    const fin = `${aStr(f)}T${pad(f.getHours())}:${pad(f.getMinutes())}:00`;
+    b.start = { dateTime: ini, timeZone: zonaHoraria() }; b.end = { dateTime: fin, timeZone: zonaHoraria() };
+  } else { b.start = { date: e.fecha }; b.end = { date: sumarDias(e.hasta && e.hasta > e.fecha ? e.hasta : e.fecha, 1) }; }
+  return b;
+}
+GG.guardarEvento = async (e) => {
+  if (!e.fecha || e.tipo === 'Recurrente') { aviso('Solo puedo guardar en Google los eventos con fecha (no los recurrentes)'); return false; }
+  try {
+    try { await pedirToken(false); } catch (x) { await pedirToken(true); }
+    const cal = calGoogleDe(e);
+    if (!cal) { aviso('Elige en Ajustes › Calendarios de Google dónde guardar las citas'); return false; }
+    const id = /^g:/.test(e.gcalId || '') ? e.gcalId.slice(2) : '';
+    const r = await api(`${GCAL}/calendars/${encodeURIComponent(cal)}/events${id ? '/' + encodeURIComponent(id) : ''}`, { method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpoGoogle(e)) });
+    const j = await r.json();
+    const o = D.eventos.find(x => x.id === e.id) || e;
+    o.gcalId = 'g:' + j.id; o.gcalCal = cal; delete o.tocado;
+    cambio(false);
+    aviso(id ? 'Cambiado también en Google Calendar' : 'Guardado también en Google Calendar');
+    return true;
+  } catch (x) {
+    console.error(x);
+    aviso(x.message === 'permiso' ? 'Google no me deja escribir en el calendario: en Ajustes, desconecta y vuelve a conectar Google aceptando todos los permisos' : 'No he podido guardarlo en Google Calendar: ' + motivoGoogle(x));
+    return false;
+  }
+};
+GG.borrarEvento = async (e) => {
+  if (!/^g:/.test(e.gcalId || '')) return;
+  try { await api(`${GCAL}/calendars/${encodeURIComponent(calGoogleDe(e))}/events/${encodeURIComponent(e.gcalId.slice(2))}`, { method: 'DELETE' }); aviso('Borrado también de Google Calendar'); }
+  catch (x) { aviso('No he podido borrarlo de Google Calendar: ' + motivoGoogle(x)); }
+};
 
 // ---------- tarjeta en Ajustes ----------
 function tarjetaGoogle() {
@@ -283,7 +326,7 @@ function tarjetaGoogle() {
   return `<section class="tarjeta" id="aj-google"><h2>Google: móvil, ordenador y calendario</h2>
     ${E.conectado ? `<p style="margin-top:0">Conectada a Google.${E.ultima ? ` Última sincronización: ${new Date(E.ultima).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' })}.` : ''}${E.sucio ? ' <b>Hay cambios sin subir.</b>' : ''}</p>
       <div class="fila-btns"><button class="btn prim" id="gg-ya">Sincronizar ahora</button><button class="btn" id="gg-cals">Calendarios de Google…</button><button class="btn" id="gg-off">Desconectar este aparato</button></div>
-      <p class="tenue">${(C.cals || []).filter(c => c.usar).length ? `Trae a Eventos: ${C.cals.filter(c => c.usar).map(c => esc(c.nombre)).join(', ')}.` : 'Aún no has elegido qué calendarios traer.'}${C.ultima ? ` Última vez: ${new Date(C.ultima).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}.` : ''}</p>`
+      <p class="tenue">${(C.cals || []).filter(c => c.usar).length ? `Trae a Eventos: ${C.cals.filter(c => c.usar).map(c => esc(c.nombre)).join(', ')}.` : 'Aún no has elegido qué calendarios traer.'}${C.destino ? ' Las citas que apuntes aquí se pueden guardar también en Google.' : ' Para guardar aquí citas que también salgan en Google, elige el calendario en «Calendarios de Google…».'}${C.ultima ? ` Última vez: ${new Date(C.ultima).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}.` : ''}</p>`
     : `<p style="margin-top:0">Guarda tu planner en tu Google Drive para tenerlo igual en el móvil y en el ordenador, y trae solos los eventos y los turnos de Google Calendar.</p>
       <button class="btn prim" id="gg-on"${GG.clientId ? '' : ' disabled'}>Conectar con Google</button>`}
     <details style="margin-top:12px"${GG.clientId ? '' : ' open'}><summary class="suave" style="cursor:pointer">${GG.clientId ? 'Configuración de Google' : 'Antes de conectar: configurar Google (una sola vez)'}</summary>

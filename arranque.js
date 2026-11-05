@@ -4,7 +4,7 @@
 //  el móvil), atajos, copia automática y modo sin conexión.
 // =====================================================================
 
-const VERSION_APP = '2.0';
+const VERSION_APP = '2.1';
 
 (async function arrancar() {
   try { D = await Store.get('datos'); } catch (e) { console.error(e); }
@@ -38,6 +38,8 @@ const VERSION_APP = '2.0';
     if (vistaActual === 'descarga') return apunteRapido();
     if (vistaActual === 'calendario') return nuevaTarea({ fecha: UI.calDia || hoy() });
     if (vistaActual === 'casa') return nuevaTarea({ cat: 'casa' });
+    if (vistaActual === 'empleo') return $('#em-nueva').click();
+    if (vistaActual === 'habitos') return $('#ha-nuevo').click();
     if (vistaActual === 'tareas' && UI.tCat === 'rapida') { const n = rapidaVisible(); if (n) n.focus(); return; }
     nuevaTarea(vistaActual === 'tareas' && UI.tCat in CATS ? { cat: UI.tCat } : {});
   };
@@ -82,6 +84,7 @@ const VERSION_APP = '2.0';
   const inicial = location.hash.slice(1);
   irA(VISTAS[inicial] ? inicial : (UI.vista || 'inicio'));
   if (primeraVez) { await guardarYa(); bienvenida(); }
+  arrancarAvisos();
 
   // Copia automática
   const dias = D.ajustes.copiaDias ?? 7;

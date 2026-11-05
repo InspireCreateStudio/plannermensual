@@ -122,6 +122,7 @@ function camposTarea(cat) {
     { k: 'url', t: 'URL del post', tipo: 'texto', ancho: 'medio' },
     { k: 'seo', t: 'Palabra clave SEO', tipo: 'texto', ancho: 'medio' },
   );
+  base.push({ k: 'repetir', t: '🔁 Repetir', tipo: 'select', op: REPETIR, ancho: 'medio' }, { k: 'aviso', t: '🔔 Avisarme', tipo: 'select', op: AVISOS, ancho: 'medio' });
   base.push({ k: 'pasos', t: 'Tareas', tipo: 'pasos' });
   base.push({ k: 'notas', t: 'Notas', tipo: 'area', filas: 2 });
   return base;
@@ -146,15 +147,17 @@ function editarTarea(t, { nueva = false } = {}) {
       if (!r.tarea) { aviso('Escribe la tarea'); return false; }
       r.cat = catPorEtiqueta(r.cat);
       const fin = { ...r, id: t.id || uid() };
+      const ahoraHecha = esHecho(fin.estado) && !esHecho(t.estado || '');
       if (nueva) D.tareas.push(fin);
       else { const i = D.tareas.findIndex(x => x.id === t.id); if (i >= 0) D.tareas[i] = fin; else D.tareas.push(fin); }
+      if (ahoraHecha) avisoRepeticion(repetirTarea(fin));
       cambio();
       if (nueva) aviso(`Apuntada en ${catDe(fin.cat).n}${fin.fecha ? ' · ' + fechaCorta(fin.fecha) : ''}`);
     },
     onBorrar: nueva ? null : async () => { borrarConDeshacer('tareas', t.id, 'Tarea borrada'); return true; },
     extras: nueva ? [] : [
       { t: '📅 Posponer', fn: async (r, cerrar) => { const f = await pedirFecha('¿A qué día la pasas?', r.fecha); if (!f) return; cerrar(); const o = D.tareas.find(x => x.id === t.id); if (o && r.tarea) { Object.keys(o).forEach(k => { if (k !== 'id') delete o[k]; }); Object.assign(o, r, { cat: catPorEtiqueta(r.cat) }); } posponerTarea(t.id, f); } },
-      { t: 'Duplicar', fn: (r, cerrar) => { cerrar(); editarTarea({ ...r, cat: catPorEtiqueta(r.cat), id: null, estado: estadoInicial(catPorEtiqueta(r.cat)) }, { nueva: true }); } }],
+      { t: 'Duplicar', fn: (r, cerrar) => { cerrar(); editarTarea({ ...r, siguiente: undefined, cat: catPorEtiqueta(r.cat), id: null, estado: estadoInicial(catPorEtiqueta(r.cat)) }, { nueva: true }); } }],
   });
 }
 function posponerTarea(id, f) {
@@ -255,17 +258,26 @@ function editarEvento(e, { nueva = false } = {}) {
     { k: 'mantener', t: 'Mostrar en Inicio y calendario', tipo: 'select', op: ['Sí', 'No', 'Pendiente'], vacio: false, ancho: 'medio' },
     { k: 'notas', t: 'Notas', tipo: 'area', filas: 2 },
   ];
+  const conG = typeof GG !== 'undefined' && GG.listo() && (GG.puedeEscribir() || /^g:/.test(e.gcalId || ''));
+  if (conG) campos.push({ k: 'enGoogle', t: /^g:/.test(e.gcalId || '') ? 'Cambiar también en Google Calendar' : 'Guardar también en Google Calendar', tipo: 'check' });
+  const obj = { mantener: 'Sí', tipo: 'Puntual', ...e };
+  if (conG) obj.enGoogle = /^g:/.test(e.gcalId || '') ? true : nueva;
   ficha({
-    titulo: nueva ? 'Nuevo evento' : 'Evento', obj: { mantener: 'Sí', tipo: 'Puntual', ...e }, campos,
+    titulo: nueva ? 'Nuevo evento' : 'Evento', obj, campos,
     onGuardar: (r) => {
       if (!r.titulo) { aviso('Escribe el evento'); return false; }
-      const fin = { ...e, ...r, id: e.id || uid() };
+      const aGoogle = !!r.enGoogle; delete r.enGoogle;
+      const fin = { ...e, ...r, id: e.id || uid() }; delete fin.enGoogle;
       ['hasta', 'notas', 'estado', 'hora', 'fecha'].forEach(k => { if (!(k in r)) delete fin[k]; });
       if (fin.gcalId) fin.tocado = true;
+      if (aGoogle) setTimeout(() => GG.guardarEvento(fin), 0);
       if (nueva) D.eventos.push(fin); else { const i = D.eventos.findIndex(x => x.id === e.id); D.eventos[i] = fin; }
       cambio();
     },
-    onBorrar: nueva ? null : async () => { borrarConDeshacer('eventos', e.id, 'Evento borrado'); return true; },
+    onBorrar: nueva ? null : async () => {
+      if (/^g:/.test(e.gcalId || '') && typeof GG !== 'undefined' && GG.listo() && await preguntar('¿Borrarlo también de Google Calendar?', 'Si pulsas Cancelar lo borro solo de aquí (y volverá a aparecer la próxima vez que traiga los eventos de Google).', 'Borrar de los dos sitios', true)) GG.borrarEvento(e);
+      borrarConDeshacer('eventos', e.id, 'Evento borrado'); return true;
+    },
   });
 }
 
@@ -318,7 +330,7 @@ function filaElemento(x, { fecha = true, franja = false, plazoVis = true, notas 
     <button class="check" data-check title="${hecho ? 'Marcar como pendiente' : 'Marcar como hecha'}" aria-label="Hecha">${hecho ? '✓' : ''}</button>
     <div class="cuerpo">
       <div class="t1">${x.punto ? `<span class="punto">${x.punto}</span>` : ''}${x.hora ? `<span class="hora">${esc(x.hora)}</span>` : ''}${esc(x.titulo) || '<i class="tenue">sin título</i>'}</div>
-      <div class="t2">${chipCat(x.cat, true)}${fecha && x.fecha ? `<span>${fechaCorta(x.fecha)}</span>` : ''}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.estado && !hecho ? `<span>${esc(x.estado)}</span>` : ''}${fr ? `<span>${iconoFranja(fr)} ${esc(fr)}</span>` : ''}${notas && x.notas ? `<span class="tenue">${esc(x.notas)}</span>` : ''}${pasosChip(x)}</div>
+      <div class="t2">${chipCat(x.cat, true)}${fecha && x.fecha ? `<span>${fechaCorta(x.fecha)}</span>` : ''}${x.sub ? `<span>${esc(x.sub)}</span>` : ''}${x.estado && !hecho ? `<span>${esc(x.estado)}</span>` : ''}${fr ? `<span>${iconoFranja(fr)} ${esc(fr)}</span>` : ''}${x.ref && x.ref.repetir ? `<span title="${esc(x.ref.repetir)}">🔁</span>` : ''}${x.ref && x.ref.aviso && !hecho ? `<span title="Aviso: ${esc(x.ref.aviso)}">🔔</span>` : ''}${notas && x.notas ? `<span class="tenue">${esc(x.notas)}</span>` : ''}${pasosChip(x)}</div>
       ${pasosAbiertos(x)}
     </div>
     <div class="lado">${x.prioridad && /Alta/.test(x.prioridad) && !hecho ? '<span class="prio" title="Prioridad alta">!</span>' : ''}${plazoVis && p.t && p.c !== 'hecho' ? `<span class="plazo ${p.c}">${p.t}</span>` : ''}${x.energia && /Baja/.test(x.energia) && !hecho ? '<span title="Energía baja">🪫</span>' : ''}</div>

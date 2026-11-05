@@ -26,6 +26,8 @@ VISTAS.inicio = (cont) => {
   if (news) avisos.push(news.fecha < H ? `<span class="rojo">⚠️ Newsletter atrasada (${fechaDM(news.fecha)}): ${esc(news.tarea)}</span>` : `✉️ Próxima newsletter (${fechaDM(news.fecha)}): ${esc(news.tarea)}`);
   const sinUsar = D.ideas.filter(i => !D.batch.some(b => String(b.idea) === String(i.n))).length;
   avisos.push(`💡 Banco de ideas: ${plural(sinUsar, 'idea sin usar', 'ideas sin usar')}${sinUsar < 5 ? ' · toca pasar el prompt de pilares' : ''}`);
+  const tocaEm = D.candidaturas.filter(candToca);
+  if (tocaEm.length) avisos.push(`<a href="#empleo">💼 Toca preguntar por ${tocaEm.length === 1 ? 'tu candidatura en ' + esc(tocaEm[0].empresa || tocaEm[0].puesto) : tocaEm.length + ' candidaturas'}</a>`);
   const sinProc = D.descarga.filter(d => /Sin procesar/.test(d.estado || '')).length;
   if (sinProc) avisos.push(`🧠 Descarga mental: ${plural(sinProc, 'apunte sin procesar', 'apuntes sin procesar')}`);
 
@@ -61,6 +63,7 @@ VISTAS.inicio = (cont) => {
           <div class="lista" id="in-lig">${ligeras.length ? ligeras.map(x => filaElemento(x)).join('') : '<p class="vacio">Esta semana no tienes tareas ligeras pendientes</p>'}</div></section>
       </div>
       <div class="col">
+        ${tarjetaHabitosHoy()}
         <section class="tarjeta">${miniMes(ym)}</section>
         <section class="tarjeta"><div class="t-cab"><h2>📝 Lista rápida</h2><a href="#" class="enlace" id="in-rapida">Abrir</a></div>${listaRapidaHTML({ compacta: true })}</section>
         <section class="tarjeta"><div class="t-cab"><h2>⭐ Próximas fechas clave</h2><a href="#eventos" class="enlace">Eventos</a></div>
@@ -92,6 +95,7 @@ VISTAS.inicio = (cont) => {
     };
   });
   enlazarListaRapida(cont);
+  enlazarHabitosHoy(cont);
   $('#in-rapida', cont).onclick = (e) => { e.preventDefault(); UI.tCat = 'rapida'; guardarUI(); irA('tareas'); };
   enlazarMiniMes(cont);
 };

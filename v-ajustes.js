@@ -26,6 +26,7 @@ VISTAS.ajustes = (cont) => {
         <label class="campo"><span>Fechas clave que se ven en Inicio</span><input id="aj-claves" type="number" min="1" max="10" value="${A.diasClave || 4}"></label>
       </section>
       ${tarjetaColores()}
+      ${tarjetaAvisos()}
       ${typeof tarjetaGoogle === 'function' ? tarjetaGoogle() : ''}
       <section class="tarjeta"><h2>Copias de seguridad</h2>
         <p class="suave" style="margin-top:0">Tus datos viven en este navegador. Guarda una copia de vez en cuando (y conecta Google para tenerlos también en el móvil).</p>
@@ -57,6 +58,7 @@ VISTAS.ajustes = (cont) => {
     <p class="tenue pie-app">Planner · versión ${VERSION_APP}</p>
   </div>`;
 
+  enlazarTarjetaAvisos(cont);
   $('#aj-nombre', cont).onchange = (e) => { A.nombre = e.target.value.trim(); cambio(false); };
   $('#aj-tema', cont).onchange = (e) => { A.tema = e.target.value; aplicarTema(); cambio(false); };
   $('#aj-claves', cont).onchange = (e) => { A.diasClave = Math.max(1, Math.min(10, +e.target.value || 4)); cambio(false); };

@@ -491,3 +491,63 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .atajos-fecha { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 .atajos-fecha .btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 9px 12px; height: auto; }
 .atajos-fecha small { color: var(--suave); font-size: 12px; font-weight: 400; }
+
+/* ---------- del menú a la compra ---------- */
+.elegir-compra { list-style: none; margin: 0 0 8px; padding: 0; max-height: 55vh; overflow: auto; }
+.elegir-compra li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--linea); }
+.elegir-compra label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.elegir-compra small { color: var(--tenue); font-size: 12px; text-align: right; }
+.semana-menu .t-cab { gap: 10px; flex-wrap: wrap; }
+
+/* ---------- calendario: semana ---------- */
+.semana { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: start; margin-top: 10px; }
+.sem-col { background: var(--hoja); border: 1px solid var(--linea); border-radius: 12px; padding: 8px; min-height: 220px; display: flex; flex-direction: column; gap: 6px; }
+.sem-col.hoy { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento); }
+.sem-col.pasado { opacity: .75; }
+.sem-col.finde { background: color-mix(in srgb, var(--hoja) 85%, var(--linea)); }
+.sem-col.soltar { outline: 2px dashed var(--acento); outline-offset: 2px; }
+.sem-cab { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--suave); padding-bottom: 6px; border-bottom: 1px solid var(--linea); }
+.sem-cab b { font-size: 14px; color: var(--tinta); }
+.sem-col .lista { display: grid; gap: 4px; }
+.sem-col .item { padding: 6px 7px; font-size: 13px; }
+.sem-col .item .t2 { font-size: 11.5px; gap: 2px 6px; }
+.sem-mas { margin-top: auto; border: 1px dashed var(--linea-fuerte); background: none; border-radius: 8px; padding: 5px; font-size: 12.5px; color: var(--suave); cursor: pointer; }
+.sem-mas:hover { color: var(--acento); border-color: var(--acento); }
+.bandeja { margin-top: 10px; padding: 10px 14px; }
+.bandeja summary { cursor: pointer; font-weight: 500; }
+.bandeja .lista { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.bandeja .item { flex: 1 1 240px; max-width: 360px; }
+@media (max-width: 1100px) { .semana { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .semana { grid-template-columns: 1fr; } .sem-col { min-height: 0; } .sem-cab { flex-direction: row; flex-wrap: wrap; gap: 4px 10px; } }
+
+/* ---------- empleo ---------- */
+.cifras-em { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px; }
+.cifras-em .tarjeta { padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+.cifras-em b { font: 600 26px var(--serif, Georgia, serif); color: var(--acento); }
+.cifras-em span { font-size: 12.5px; color: var(--suave); }
+.toca-em { margin-bottom: 14px; border-color: var(--acento); }
+.cand { cursor: pointer; }
+.cand .btn { align-self: center; }
+@media (max-width: 760px) { .cifras-em { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------- hábitos ---------- */
+.tabla-habitos { overflow-x: auto; }
+.fila-hab { display: grid; grid-template-columns: minmax(130px, 1.6fr) repeat(7, 38px) 64px 54px; align-items: center; gap: 4px; padding: 6px 0; border-bottom: 1px solid var(--linea); min-width: 520px; }
+.fila-hab.cab { font-size: 12px; color: var(--suave); text-align: center; border-bottom-width: 2px; }
+.fila-hab.cab span:first-child { text-align: left; }
+.fila-hab.cab small { display: block; font-size: 11px; color: var(--tenue); }
+.fila-hab.cab .hoy { color: var(--acento); font-weight: 600; }
+.fila-hab > span { display: grid; place-items: center; }
+.fila-hab .check { width: 26px; height: 26px; border-radius: 8px; cursor: pointer; }
+.fila-hab .check.on { background: var(--verde); border-color: var(--verde); }
+.fila-hab .check:disabled { opacity: .3; cursor: default; }
+.fila-hab .no-toca { color: var(--tenue); }
+.nombre-hab { border: 0; background: none; text-align: left; font: inherit; cursor: pointer; padding: 4px 0; color: var(--tinta); }
+.nombre-hab:hover { color: var(--acento); }
+.racha { font-weight: 600; font-size: 13px; }
+.dias-hab { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 4px; }
+.dias-hab label { display: inline-flex; gap: 5px; align-items: center; font-size: 14px; color: var(--tinta); }
+.chips-hab { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips-hab button { border: 1px solid var(--linea-fuerte); background: var(--hoja); border-radius: 999px; padding: 6px 12px; font-size: 13.5px; cursor: pointer; }
+.chips-hab button.on { background: color-mix(in srgb, var(--verde) 16%, var(--hoja)); border-color: var(--verde); }
+.chips-hab i { font-style: normal; font-size: 12px; }
