@@ -555,3 +555,19 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 /* Objetivos por trimestre: dos columnas (una en el móvil) */
 .meses-obj.obj-tri { grid-template-columns: repeat(2, 1fr); }
 @media (max-width: 760px) { .meses-obj.obj-tri { grid-template-columns: 1fr; } }
+
+/* Otros trabajos: resumen y cuatro columnas de encargos */
+.tr-resumen { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+.tr-resumen .tarjeta { display: flex; flex-direction: column; gap: 2px; padding: 12px 16px; }
+.tr-resumen b { font: 600 22px var(--serif); color: var(--tinta); }
+.tr-resumen span { color: var(--suave); font-size: 13px; }
+.tr-columnas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.tr-col { display: flex; flex-direction: column; gap: 8px; }
+.trabajo { background: var(--hoja); border: 1px solid var(--linea); border-left: 4px solid #6b7d3a; border-radius: 10px; padding: 9px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.trabajo:hover { box-shadow: var(--sombra); }
+.trabajo.cerrado { opacity: .6; }
+.trabajo .tr-t { font-weight: 600; }
+.trabajo .tr-s { font-size: 13px; }
+.trabajo .tr-chips { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--suave); }
+@media (max-width: 1100px) { .tr-columnas { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .tr-resumen { grid-template-columns: 1fr 1fr; } .tr-columnas { grid-template-columns: 1fr; } }
