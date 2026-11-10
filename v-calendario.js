@@ -45,6 +45,9 @@ VISTAS.calendario = (cont) => {
   });
   Object.values(porDia).forEach(l => l.sort((a, b) => (a.tipo === 'evento' ? 0 : 1) - (b.tipo === 'evento' ? 0 : 1) || ordenFecha(a, b)));
   const delDia = porDia[dia] || [];
+  // Si miras hoy, también lo de mañana (por si se puede adelantar)
+  const manana = sumarDias(H, 1);
+  const deManana = dia === H ? elementos({ desde: manana, hasta: manana }).filter(visible).sort((a, b) => (a.tipo === 'evento' ? 0 : 1) - (b.tipo === 'evento' ? 0 : 1) || ordenFecha(a, b)) : [];
   const MAX = 4;
 
   cont.innerHTML = `<div class="pagina ancha calendario">${cabecera('Calendario', '', `<button class="btn prim" id="ca-nueva">+ Tarea</button>`)}
@@ -66,11 +69,15 @@ VISTAS.calendario = (cont) => {
         <div class="t-cab"><h2>${fechaLarga(dia)}</h2><button class="btn peq" id="ca-add">+ Añadir</button></div>
         ${infoDia(dia)}
         <div class="lista" id="ca-dia">${delDia.length ? delDia.map(x => filaElemento(x, { fecha: false, plazoVis: false })).join('') : '<p class="vacio">Nada apuntado este día</p>'}</div>
+        ${dia === H ? `<div class="t-cab" style="margin-top:18px"><h2>Mañana · ${fechaDM(manana)}</h2></div><p class="tenue" style="margin:-4px 0 8px;font-size:13px">Por si puedes adelantar algo</p>
+        ${infoDia(manana)}
+        <div class="lista" id="ca-manana">${deManana.length ? deManana.map(x => filaElemento(x, { fecha: false, plazoVis: false })).join('') : '<p class="vacio">Nada apuntado para mañana</p>'}</div>` : ''}
       </aside>
     </div></div>`;
 
   enlazarNav(cont, modo);
   enlazarItems($('#ca-dia', cont), delDia);
+  if ($('#ca-manana', cont)) enlazarItems($('#ca-manana', cont), deManana);
   $$('.celda', cont).forEach(c => {
     c.onclick = (e) => {
       if (UI.calDia === c.dataset.dia && !e.target.closest('.mini') && matchMedia('(min-width: 761px)').matches) { nuevaTarea({ fecha: c.dataset.dia }); return; }
