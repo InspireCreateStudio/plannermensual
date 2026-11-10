@@ -8,7 +8,9 @@ VISTAS.inicio = (cont) => {
   const lunes = lunesDe(H), domingo = sumarDias(lunes, 6);
   const todo = elementos();
   const deHoy = todo.filter(x => x.fecha === H).sort(ordenFecha);
-  const atras = todo.filter(atrasada).sort(ordenFecha);
+  // Atrasadas: las de esta semana van dentro de «Hoy»; las de semanas anteriores, en su propia tarjeta
+  const atras = todo.filter(x => atrasada(x) && x.fecha >= lunes).sort(ordenFecha);
+  const atrasViejas = todo.filter(x => atrasada(x) && x.fecha < lunes).sort(ordenFecha);
   const semana = todo.filter(x => x.fecha > H && x.fecha <= domingo).sort(ordenFecha);
   const urgentes = todo.filter(x => x.tipo !== 'evento' && pendiente(x) && x.fecha && x.fecha <= domingo && /Alta/.test(x.prioridad || '')).sort(ordenFecha);
   const ligeras = todo.filter(x => x.tipo !== 'evento' && pendiente(x) && x.fecha >= lunes && x.fecha <= domingo && /Baja/.test(x.energia || '')).sort(ordenFecha);
@@ -53,8 +55,10 @@ VISTAS.inicio = (cont) => {
       <div class="col">
         <section class="tarjeta"><div class="t-cab"><h2>📌 Hoy</h2><span class="tenue">${deHoy.length ? plural(deHoy.filter(pendiente).length, 'pendiente', 'pendientes') : ''}</span></div>
           <div class="lista" id="in-hoy">${deHoy.length ? deHoy.map(x => filaElemento(x, { fecha: false, plazoVis: false })).join('') : '<p class="vacio">🎉 No tienes nada apuntado para hoy</p>'}</div>
-          ${atras.length ? `<details class="atrasadas" ${UI.verAtras ? 'open' : ''}><summary>⏰ ${plural(atras.length, 'atrasada', 'atrasadas')}</summary><div class="lista" id="in-atras">${atras.map(x => filaElemento(x)).join('')}</div></details>` : ''}
+          ${atras.length ? `<details class="atrasadas" ${UI.verAtras ? 'open' : ''}><summary>⏰ ${plural(atras.length, 'atrasada', 'atrasadas')} de esta semana</summary><div class="lista" id="in-atras">${atras.map(x => filaElemento(x)).join('')}</div></details>` : ''}
         </section>
+        ${atrasViejas.length ? `<section class="tarjeta"><div class="t-cab"><h2>⏳ Pendiente de otras semanas</h2><span class="tenue">${plural(atrasViejas.length, 'tarea', 'tareas')} · hazla, cámbiala de día o anúlala</span></div>
+          <div class="lista" id="in-viejas">${atrasViejas.map(x => filaElemento(x)).join('')}</div></section>` : ''}
         <section class="tarjeta"><div class="t-cab"><h2>📅 Lo que queda de semana</h2><a href="#calendario" class="enlace">Calendario</a></div>
           <div id="in-semana">${semana.length ? agruparPorDia(semana) : '<p class="vacio">Nada más apuntado hasta el domingo</p>'}</div></section>
         <section class="tarjeta"><div class="t-cab"><h2>🔥 Urgente: prioridad alta hasta el domingo</h2></div>
@@ -81,6 +85,7 @@ VISTAS.inicio = (cont) => {
 
   enlazarItems($('#in-hoy', cont), deHoy);
   if ($('#in-atras', cont)) { enlazarItems($('#in-atras', cont), atras); $('details.atrasadas', cont).ontoggle = (e) => { UI.verAtras = e.target.open; guardarUI(); }; }
+  if ($('#in-viejas', cont)) enlazarItems($('#in-viejas', cont), atrasViejas);
   enlazarItems($('#in-semana', cont), semana);
   enlazarItems($('#in-urg', cont), urgentes);
   enlazarItems($('#in-lig', cont), ligeras);
