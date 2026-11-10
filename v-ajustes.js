@@ -87,7 +87,16 @@ VISTAS.ajustes = (cont) => {
       cambio(false);
     });
     $('[data-clave]', f).onchange = (e) => { D.clave = D.clave.filter(n => n !== c.nombre); if (e.target.checked) D.clave.push(c.nombre); cambio(false); };
-    $('[data-quitar]', f).onclick = () => { D.calendarios.splice(+f.dataset.i, 1); cambio(); };
+    $('[data-quitar]', f).onclick = async () => {
+      // Al quitar un calendario se van también sus eventos (si no, volvería a aparecer) y deja de traerse de Google
+      const n = D.eventos.filter(e => e.cal === c.nombre).length;
+      if (n && !(await preguntar(`¿Quitar «${c.nombre}»?`, `Tiene ${plural(n, 'evento', 'eventos')}. Se borran también de aquí (no de Google Calendar).`, 'Quitar calendario y eventos', true))) return;
+      D.eventos = D.eventos.filter(e => e.cal !== c.nombre);
+      D.clave = D.clave.filter(x => x !== c.nombre);
+      const G = D.ajustes.gcal; if (G && G.cals) G.cals.forEach(g => { if (g.local === c.nombre) g.usar = false; });
+      D.calendarios = D.calendarios.filter(x => x !== c);
+      cambio();
+    };
   });
   $('#aj-addcal', cont).onclick = async () => { const n = await pedirTexto('Nuevo calendario', '', 'Nombre'); if (n) { D.calendarios.push({ nombre: n.toUpperCase(), punto: '⚪' }); cambio(); } };
   $$('[data-lista]', cont).forEach(t => t.onchange = () => {
