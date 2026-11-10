@@ -282,32 +282,54 @@ function editarEvento(e, { nueva = false } = {}) {
 }
 
 // ---------- objetivos ----------
+const PERIODOS_OBJ = [['mes', 'Mensual'], ['trimestre', 'Trimestral'], ['año', 'Anual']];
+const TRIMESTRES = ['1.º trimestre (ene–mar)', '2.º trimestre (abr–jun)', '3.º trimestre (jul–sep)', '4.º trimestre (oct–dic)'];
+const periodoObj = (o) => o.periodo || 'mes';
 function editarObjetivo(o, { nueva = false } = {}) {
   const anios = [];
   for (let y = new Date().getFullYear() - 1; y <= new Date().getFullYear() + 3; y++) anios.push(String(y));
-  const obj = { ...o, mesTxt: o.mes ? may(MESES[o.mes - 1]) : '', anio: String(o.anio || '') };
+  const mesBase = o.mes || (o.trimestre ? (o.trimestre - 1) * 3 + 1 : new Date().getMonth() + 1);
+  const obj = { ...o, tipoTxt: PERIODOS_OBJ.find(p => p[0] === periodoObj(o))[1], mesTxt: may(MESES[mesBase - 1]), triTxt: TRIMESTRES[(o.trimestre || Math.ceil(mesBase / 3)) - 1], anio: String(o.anio || '') };
+  // Según el tipo, se ve el mes, el trimestre o ninguno
+  const ver = (v, m) => {
+    const p = (PERIODOS_OBJ.find(x => x[1] === v) || PERIODOS_OBJ[0])[0];
+    [['mesTxt', p === 'mes'], ['triTxt', p === 'trimestre']].forEach(([k, si]) => { const c = $(`[data-k="${k}"]`, m); if (c) c.closest('.campo').style.display = si ? '' : 'none'; });
+  };
   const campos = [
     { k: 'texto', t: 'Objetivo', tipo: 'texto' },
     { k: 'cat', t: 'Categoría', tipo: 'select', op: D.listas.catObjetivos, ancho: 'medio' },
     { k: 'estado', t: 'Estado', tipo: 'select', op: D.listas.estados.objetivos, vacio: false, ancho: 'medio' },
-    { k: 'mesTxt', t: 'Mes', tipo: 'select', op: MESES.map(may), vacio: false, ancho: 'medio' },
+    { k: 'tipoTxt', t: 'Tipo', tipo: 'select', op: PERIODOS_OBJ.map(p => p[1]), vacio: false, ancho: 'medio', alCambiar: ver },
     { k: 'anio', t: 'Año', tipo: 'select', op: anios, vacio: false, ancho: 'medio' },
+    { k: 'mesTxt', t: 'Mes', tipo: 'select', op: MESES.map(may), vacio: false, ancho: 'medio' },
+    { k: 'triTxt', t: 'Trimestre', tipo: 'select', op: TRIMESTRES, vacio: false, ancho: 'medio' },
   ];
+  const leer = (r) => {
+    const per = (PERIODOS_OBJ.find(x => x[1] === r.tipoTxt) || PERIODOS_OBJ[0])[0];
+    const fin = { id: o.id || uid(), texto: r.texto, cat: r.cat || '', estado: r.estado, periodo: per, anio: Number(r.anio) };
+    if (per === 'mes') fin.mes = MESES.indexOf((r.mesTxt || '').toLowerCase()) + 1;
+    if (per === 'trimestre') fin.trimestre = TRIMESTRES.indexOf(r.triTxt) + 1;
+    return fin;
+  };
   ficha({
     titulo: nueva ? 'Nuevo objetivo' : 'Objetivo', obj, campos,
     onGuardar: (r) => {
       if (!r.texto) { aviso('Escribe el objetivo'); return false; }
-      const fin = { id: o.id || uid(), texto: r.texto, cat: r.cat || '', estado: r.estado, mes: MESES.indexOf((r.mesTxt || '').toLowerCase()) + 1, anio: Number(r.anio) };
+      const fin = leer(r);
       if (nueva) D.objetivos.push(fin); else { const i = D.objetivos.findIndex(x => x.id === o.id); D.objetivos[i] = fin; }
       cambio();
     },
     onBorrar: nueva ? null : async () => { borrarConDeshacer('objetivos', o.id, 'Objetivo borrado'); return true; },
-    extras: nueva ? [] : [{ t: 'Repetir el mes siguiente', fn: (r, cerrar) => {
-      const mes = MESES.indexOf((r.mesTxt || '').toLowerCase()) + 1; const anio = Number(r.anio);
-      D.objetivos.push({ id: uid(), texto: r.texto, cat: r.cat || '', estado: D.listas.estados.objetivos[0], mes: mes === 12 ? 1 : mes + 1, anio: mes === 12 ? anio + 1 : anio });
-      cambio(); cerrar(); aviso('Copiado al mes siguiente');
+    extras: nueva ? [] : [{ t: 'Repetir en el siguiente', fn: (r, cerrar) => {
+      const f = leer(r); const n = { ...f, id: uid(), estado: D.listas.estados.objetivos[0] };
+      if (f.periodo === 'mes') { n.mes = f.mes === 12 ? 1 : f.mes + 1; n.anio = f.mes === 12 ? f.anio + 1 : f.anio; }
+      else if (f.periodo === 'trimestre') { n.trimestre = f.trimestre === 4 ? 1 : f.trimestre + 1; n.anio = f.trimestre === 4 ? f.anio + 1 : f.anio; }
+      else n.anio = f.anio + 1;
+      D.objetivos.push(n); cambio(); cerrar();
+      aviso(f.periodo === 'mes' ? 'Copiado al mes siguiente' : f.periodo === 'trimestre' ? 'Copiado al trimestre siguiente' : 'Copiado al año siguiente');
     } }],
   });
+  const m = document.body.lastElementChild; const s = $('[data-k="tipoTxt"]', m); if (s) ver(s.value, m);
 }
 
 // Abre la ficha que toque para un elemento de la lista común
