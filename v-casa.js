@@ -71,18 +71,23 @@ function casaMenu(c) {
   c.innerHTML = `<div class="nav-cal"><button class="icono" id="me-ant">‹</button><h2 class="titulo-cal">${nombreMes(ym)}</h2><button class="icono" id="me-sig">›</button>
       <span class="hueco"></span><span class="tenue">Ver:</span>${COMIDAS.map(([k, t]) => `<label class="check-peq"><input type="checkbox" data-com="${k}"${verComidas.includes(k) ? ' checked' : ''}> ${t}</label>`).join('')}</div>
     <datalist id="me-platos">${[...new Set(Object.values(D.menu).flatMap(m => Object.values(m)))].sort().map(p => `<option value="${esc(p)}">`).join('')}</datalist>
+    <datalist id="me-cong">${D.congelador.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
     <datalist id="me-tengo">${D.despensa.map(p => `<option value="${esc(p)}">`).join('')}</datalist>
     ${semanas.map((s, i) => {
       const k = s[0]; const co = D.cocina[k] || {};
       return `<section class="tarjeta semana-menu">
         <div class="t-cab"><h2>🍽️ Semana ${i + 1} · ${fechaDM(s[0])} – ${fechaDM(s[6])}</h2><button class="btn peq" data-hacer-compra="${k}">🛒 Preparar la compra</button></div>
-        <div class="cocina"><label class="campo medio"><span>🍳 Batch: qué cocinas</span><input data-coc="${k}" data-ck="cocinas" value="${esc(co.cocinas || '')}" placeholder="p. ej. lentejas + albóndigas"></label>
-          <label class="campo medio"><span>🧊 Qué tengo (congelador / despensa)</span><input data-coc="${k}" data-ck="tengo" value="${esc(co.tengo || '')}" list="me-tengo"></label></div>
+        <div class="cocina"><label class="campo tercio"><span>🍳 Batch: qué cocinas</span><input data-coc="${k}" data-ck="cocinas" value="${esc(co.cocinas || '')}" placeholder="p. ej. lentejas + albóndigas"></label>
+          <label class="campo tercio"><span>❄️ Qué tengo en el congelador</span><input data-coc="${k}" data-ck="congelador" value="${esc(co.congelador || '')}" list="me-cong"></label>
+          <label class="campo tercio"><span>🥫 Qué tengo en la despensa</span><input data-coc="${k}" data-ck="tengo" value="${esc(co.tengo || '')}" list="me-tengo"></label></div>
         <div class="tabla-menu" style="--n:${verComidas.length}"><div></div>${COMIDAS.filter(([k]) => verComidas.includes(k)).map(([, t]) => `<div class="cab">${t}</div>`).join('')}
           ${s.map(f => `<div class="dia-menu ${mesDe(f) !== ym ? 'fuera' : ''} ${f === H ? 'hoy' : ''}">${may(DIAS[diaSemana(f)]).slice(0, 3)} ${aFecha(f).getDate()}</div>${COMIDAS.filter(([k]) => verComidas.includes(k)).map(([cm]) => `<input data-dia="${f}" data-comida="${cm}" value="${esc((D.menu[f] || {})[cm] || '')}" list="me-platos" aria-label="${cm} ${f}">`).join('')}`).join('')}
         </div></section>`;
     }).join('')}
-    <section class="tarjeta"><h2>⚙️ Qué suelo tener (para elegir rápido)</h2><textarea id="me-desp" rows="5">${esc(D.despensa.join('\n'))}</textarea><p class="tenue">Una cosa por línea.</p></section>`;
+    <section class="tarjeta"><h2>⚙️ Qué suelo tener (para elegir rápido)</h2>
+      <div class="cocina"><label class="campo medio"><span>❄️ Congelador</span><textarea id="me-cong-l" rows="6">${esc(D.congelador.join('\n'))}</textarea></label>
+        <label class="campo medio"><span>🥫 Despensa</span><textarea id="me-desp" rows="6">${esc(D.despensa.join('\n'))}</textarea></label></div>
+      <p class="tenue">Una cosa por línea.</p></section>`;
   $('#me-ant', c).onclick = () => { UI.mMes = sumarMeses(ym, -1); guardarUI(); pintar(); };
   $('#me-sig', c).onclick = () => { UI.mMes = sumarMeses(ym, 1); guardarUI(); pintar(); };
   $$('[data-com]', c).forEach(b => b.onchange = () => { UI.mComidas = $$('[data-com]:checked', c).map(x => x.dataset.com); if (!UI.mComidas.length) UI.mComidas = ['comida']; guardarUI(); pintar(); });
@@ -94,11 +99,12 @@ function casaMenu(c) {
   });
   $$('[data-coc]', c).forEach(i => i.onchange = () => {
     const k = i.dataset.coc; const o = D.cocina[k] || (D.cocina[k] = {});
-    o[i.dataset.ck] = i.value.trim(); if (!o.cocinas && !o.tengo) delete D.cocina[k];
+    o[i.dataset.ck] = i.value.trim(); if (!o.cocinas && !o.tengo && !o.congelador) delete D.cocina[k];
     cambio(false);
   });
   $$('[data-hacer-compra]', c).forEach(b => b.onclick = () => compraDelMenu(b.dataset.hacerCompra));
   $('#me-desp', c).onchange = (e) => { D.despensa = e.target.value.split('\n').map(s => s.trim()).filter(Boolean); cambio(false); };
+  $('#me-cong-l', c).onchange = (e) => { D.congelador = e.target.value.split('\n').map(s => s.trim()).filter(Boolean); cambio(false); };
 }
 
 // ---------- tareas de casa ----------
