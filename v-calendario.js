@@ -18,7 +18,7 @@ VISTAS.calendario = (cont) => {
 
   const nav = `<div class="nav-cal"><button class="icono" id="ca-ant" aria-label="Anterior">‹</button><h2 class="titulo-cal">${tituloNav}</h2><button class="icono" id="ca-sig" aria-label="Siguiente">›</button>
     <button class="btn peq" id="ca-hoy">Hoy</button><div class="segmentado peq"><button data-modo="semana" class="${modo === 'semana' ? 'on' : ''}">Semana</button><button data-modo="mes" class="${modo === 'mes' ? 'on' : ''}">Mes</button><button data-modo="año" class="${modo === 'año' ? 'on' : ''}">Año</button></div></div>`;
-  const filtros = `<div class="filtros-cal">${[...Object.keys(CATS), 'redes', 'eventos'].map(k => `<button data-oc="${k}" class="${ocultas.has(k) ? 'off' : ''}" style="--c:${catDe(k).color}" title="${esc(catDe(k).n)}">${catDe(k).e}<span> ${esc(catDe(k).n)}</span></button>`).join('')}</div>`;
+  const filtros = `<div class="filtros-cal">${[...Object.keys(CATS), 'redes', 'trabajos', 'eventos'].map(k => `<button data-oc="${k}" class="${ocultas.has(k) ? 'off' : ''}" style="--c:${catDe(k).color}" title="${esc(catDe(k).n)}">${catDe(k).e}<span> ${esc(catDe(k).n)}</span></button>`).join('')}</div>`;
 
   if (modo === 'año') {
     const y = ym.slice(0, 4);
