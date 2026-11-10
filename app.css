@@ -551,3 +551,7 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .chips-hab button { border: 1px solid var(--linea-fuerte); background: var(--hoja); border-radius: 999px; padding: 6px 12px; font-size: 13.5px; cursor: pointer; }
 .chips-hab button.on { background: color-mix(in srgb, var(--verde) 16%, var(--hoja)); border-color: var(--verde); }
 .chips-hab i { font-style: normal; font-size: 12px; }
+
+/* Objetivos por trimestre: dos columnas (una en el móvil) */
+.meses-obj.obj-tri { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 760px) { .meses-obj.obj-tri { grid-template-columns: 1fr; } }
