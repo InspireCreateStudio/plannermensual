@@ -20,7 +20,8 @@ const CAT_REDES = { n: 'Redes', e: '📱', color: '#d0587e', estados: 'redes', h
 const COLOR_ACENTO = '#9c4f35';
 const COLORES_SERIE = Object.fromEntries([...Object.entries(CATS).map(([k, c]) => [k, c.color]), ['redes', '#d0587e'], ['eventos', '#5b6bb5']]);
 const CAT_EVENTO = { n: 'Eventos', e: '📅', color: '#5b6bb5' };
-const catDe = (k) => CATS[k] || (k === 'redes' ? CAT_REDES : k === 'eventos' ? CAT_EVENTO : { n: k, e: '•', color: '#888' });
+const CAT_TRABAJO = { n: 'Otros trabajos', e: '🖋️', color: '#6b7d3a' };
+const catDe = (k) => CATS[k] || (k === 'redes' ? CAT_REDES : k === 'eventos' ? CAT_EVENTO : k === 'trabajos' ? CAT_TRABAJO : { n: k, e: '•', color: '#888' });
 
 const FORMATO_E = { Reel: '🎬', Carrusel: '🗂️', Post: '📷', Story: '⭕' };
 const COMIDAS = [['desayuno', '🥐 Desayuno'], ['almuerzo', '🍎 Almuerzo'], ['comida', '🍲 Comida'], ['merienda', '🧃 Merienda'], ['cena', '🌙 Cena']];
@@ -30,7 +31,7 @@ function datosVacios() {
   return {
     app: 'planner', version: 1,
     tareas: [], rapida: [], candidaturas: [], habitos: [], habitosReg: {}, recetas: {}, descarga: [], objetivos: [], eventos: [], ideas: [], batch: [], compra: [],
-    ayuntamiento: tareasAytoIniciales(), ayto: { puesto: '', inicio: '' },
+    trabajos: [], ayuntamiento: tareasAytoIniciales(), ayto: { puesto: '', inicio: '' },
     menu: {}, cocina: {}, congelador: ['Pollo troceado', 'Carne picada', 'Pescado blanco'], despensa: ['Arroz', 'Pasta', 'Legumbres'],
     revision: {},
     calendarios: [
@@ -120,7 +121,7 @@ function completar(d) {
 }
 
 // ---------- estados ----------
-const RE_HECHO = /Completada|Lanzado|Enviada|Publicado|Conseguido/i;
+const RE_HECHO = /Completada|Lanzado|Enviada|Publicado|Conseguido|Entregado/i;
 const RE_ANULADA = /Cancelada|Descartad|Eliminada/i;
 const esHecho = (estado) => RE_HECHO.test(estado || '');
 const esAnulada = (estado) => RE_ANULADA.test(estado || '');
@@ -190,7 +191,7 @@ const iconoFranja = (fr) => !fr ? '' : /Solo mañana/i.test(fr) ? '☀️' : /So
 
 // ---------- todo junto (lo que en el Excel era «Vista global») ----------
 // Cada elemento: { tipo, id, cat, fecha, hora, titulo, sub, estado, prioridad, energia, notas, ref }
-function elementos({ desde, hasta, conEventos = true, conPiezas = true } = {}) {
+function elementos({ desde, hasta, conEventos = true, conPiezas = true, conTrabajos = true } = {}) {
   const sinRango = !desde && !hasta;
   const dentro = (f) => f ? (!desde || f >= desde) && (!hasta || f <= hasta) : sinRango;
   const out = [];
@@ -201,6 +202,12 @@ function elementos({ desde, hasta, conEventos = true, conPiezas = true } = {}) {
   if (conPiezas) D.batch.forEach(b => {
     if (!dentro(b.fecha)) return;
     out.push({ tipo: 'pieza', id: b.id, cat: 'redes', fecha: b.fecha, hora: '', titulo: `${FORMATO_E[b.formato] || ''} ${b.formato || 'Pieza'}: ${temaPieza(b) || 'sin tema'}`.trim(), sub: b.donde || '', estado: estadoPieza(b), prioridad: b.prioridad, energia: energiaPieza(b), notas: b.notas, ref: b });
+  });
+  // Encargos de Otros trabajos: salen el día de su fecha límite
+  if (conTrabajos) (D.trabajos || []).forEach(j => {
+    if (!dentro(j.fecha)) return;
+    const tt = typeof tipoTrabajo === 'function' ? tipoTrabajo(j.tipo) : ['', '🖋️', ''];
+    out.push({ tipo: 'trabajo', id: j.id, cat: 'trabajos', fecha: j.fecha, hora: '', titulo: `${tt[1]} Entrega: ${j.titulo || 'encargo'}`, sub: j.cliente || '', estado: j.estado, prioridad: '', energia: '', notas: j.notas, ref: j });
   });
   if (conEventos) D.eventos.forEach(e => {
     if (e.tipo === 'Recurrente' || e.mantener === 'No' || !e.fecha) return;
@@ -253,6 +260,7 @@ function alternarHecho(x) {
   const r = x.ref;
   if (x.tipo === 'pieza') { r.publicado = !r.publicado; if (r.publicado) { r.grabado = r.editado = r.captionListo = r.programado = true; } }
   else if (x.tipo === 'evento') r.estado = esHecho(r.estado) ? '' : '✅Completada';
+  else if (x.tipo === 'trabajo') r.estado = esHecho(r.estado) ? '✏️ En curso' : '📤 Entregado';
   else {
     r.estado = esHecho(r.estado) ? estadoInicial(r.cat) : estadoHecho(r);
     if (esHecho(r.estado)) avisoRepeticion(repetirTarea(r)); else deshacerRepeticion(r);
@@ -261,7 +269,7 @@ function alternarHecho(x) {
   return pendiente({ estado: x.tipo === 'pieza' ? estadoPieza(r) : r.estado });
 }
 function buscarRef(tipo, id) {
-  const lista = tipo === 'pieza' ? D.batch : tipo === 'evento' ? D.eventos : D.tareas;
+  const lista = tipo === 'pieza' ? D.batch : tipo === 'evento' ? D.eventos : tipo === 'trabajo' ? D.trabajos : D.tareas;
   return lista.find(o => o.id === id);
 }
 
@@ -274,7 +282,7 @@ function importarDatos(j, modo) {
     D = completar({ ...datosVacios(), ...nuevo, listas: { ...listasPorDefecto(), ...(nuevo.listas || {}) }, ajustes: aj });
   } else {
     // Juntar: añade lo que no esté (por id) y no toca lo que ya tienes
-    ['tareas', 'rapida', 'candidaturas', 'habitos', 'descarga', 'objetivos', 'eventos', 'ideas', 'batch', 'compra', 'ayuntamiento'].forEach(k => {
+    ['tareas', 'rapida', 'candidaturas', 'habitos', 'descarga', 'objetivos', 'eventos', 'ideas', 'batch', 'compra', 'ayuntamiento', 'trabajos'].forEach(k => {
       const ids = new Set(D[k].map(o => o.id));
       (nuevo[k] || []).forEach(o => { if (!ids.has(o.id)) D[k].push(o); });
     });
