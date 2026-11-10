@@ -30,7 +30,7 @@ function datosVacios() {
   return {
     app: 'planner', version: 1,
     tareas: [], rapida: [], candidaturas: [], habitos: [], habitosReg: {}, recetas: {}, descarga: [], objetivos: [], eventos: [], ideas: [], batch: [], compra: [],
-    menu: {}, cocina: {}, despensa: ['❄️ Pollo troceado', '❄️ Carne picada', '❄️ Pescado blanco', '🥫 Arroz', '🥫 Pasta', '🥫 Legumbres'],
+    menu: {}, cocina: {}, congelador: ['Pollo troceado', 'Carne picada', 'Pescado blanco'], despensa: ['Arroz', 'Pasta', 'Legumbres'],
     revision: {},
     calendarios: [
       { nombre: 'TRABAJO', punto: '🟠' }, { nombre: 'FAMILIA', punto: '🔵' }, { nombre: 'MÉDICOS', punto: '🔴' },
@@ -88,6 +88,12 @@ function listasPorDefecto() {
 function completar(d) {
   const base = datosVacios();
   if (d.ajustes && d.ajustes.nombre === undefined) d.ajustes.nombre = (d.calendarios || []).some(c => c.nombre === 'MARTA LOBO') ? 'Marta' : '';
+  // «Qué suelo tener» se separa en Congelador y Despensa: lo que llevaba ❄️ pasa al congelador
+  if (d.congelador === undefined && Array.isArray(d.despensa)) {
+    const limpio = (x) => x.replace(/^(❄️|❄|🥫)\s*/u, '').trim();
+    d.congelador = d.despensa.filter(x => /^❄/u.test(x)).map(limpio).filter(Boolean);
+    d.despensa = d.despensa.filter(x => !/^❄/u.test(x)).map(limpio).filter(Boolean);
+  }
   Object.keys(base).forEach(k => { if (d[k] === undefined) d[k] = base[k]; });
   Object.keys(base.dispo).forEach(k => { if (d.dispo[k] === undefined) d.dispo[k] = base.dispo[k]; });
   Object.keys(base.ajustes).forEach(k => { if (d.ajustes[k] === undefined) d.ajustes[k] = base.ajustes[k]; });
@@ -281,6 +287,7 @@ function importarDatos(j, modo) {
       else if (Array.isArray(v)) D.listas[k] = [...new Set([...(D.listas[k] || []), ...v])];
     });
     if (nuevo.despensa) D.despensa = [...new Set([...D.despensa, ...nuevo.despensa])];
+    if (nuevo.congelador) D.congelador = [...new Set([...(D.congelador || []), ...nuevo.congelador])];
     if (nuevo.calendarios) nuevo.calendarios.forEach(c => { if (!D.calendarios.some(x => x.nombre === c.nombre)) D.calendarios.push(c); });
     if (nuevo.enlaces && nuevo.enlaces.length) nuevo.enlaces.forEach(e => { if (/^https?:/.test(e.url) && !D.enlaces.some(x => x.url === e.url)) D.enlaces.push(e); });
   }
