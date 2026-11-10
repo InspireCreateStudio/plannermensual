@@ -36,7 +36,9 @@ VISTAS.inicio = (cont) => {
   // --- objetivos y progreso del mes ---
   const ym = mesDe(H);
   const [Y, Mm] = ym.split('-').map(Number);
-  const objs = D.objetivos.filter(o => o.anio === Y && o.mes === Mm);
+  const objs = D.objetivos.filter(o => o.anio === Y && (o.periodo || 'mes') === 'mes' && o.mes === Mm);
+  // Los del trimestre y del año, para tenerlos a la vista
+  const objsLargos = D.objetivos.filter(o => o.anio === Y && ((o.periodo === 'trimestre' && o.trimestre === Math.ceil(Mm / 3)) || o.periodo === 'año') && !esAnulada(o.estado));
   const delMes = todo.filter(x => mesDe(x.fecha) === ym && x.tipo !== 'evento' && !esAnulada(x.estado));
   const porCat = {};
   delMes.forEach(x => { const c = porCat[x.cat] || (porCat[x.cat] = { t: 0, h: 0 }); c.t++; if (esHecho(x.estado)) c.h++; });
@@ -73,7 +75,8 @@ VISTAS.inicio = (cont) => {
         <section class="tarjeta"><div class="t-cab"><h2>⭐ Próximas fechas clave</h2><a href="#eventos" class="enlace">Eventos</a></div>
           ${fechasClave.length ? `<ul class="claves">${fechasClave.map(e => `<li><b>${fechaDM(e.fecha)}</b><span>${puntoCal(e.cal)} ${esc(e.titulo)}</span><i>${diasEntre(H, e.fecha) === 0 ? 'hoy' : 'en ' + plural(diasEntre(H, e.fecha), 'día', 'días')}</i></li>`).join('')}</ul>` : '<p class="vacio">Sin fechas clave próximas</p>'}</section>
         <section class="tarjeta"><div class="t-cab"><h2>🎯 Objetivos de ${MESES[Mm - 1]} · ${objs.filter(o => esHecho(o.estado)).length}/${objs.length}</h2><a href="#objetivos" class="enlace">Ver todos</a></div>
-          ${objs.length ? `<ul class="objs">${objs.map(o => `<li data-obj="${o.id}" class="${esHecho(o.estado) ? 'hecho' : ''}"><button class="check" data-ocheck>${esHecho(o.estado) ? '✓' : ''}</button><span>${esc(o.texto)}</span><small>${esc(o.cat || '')}</small></li>`).join('')}</ul>` : '<p class="vacio">Sin objetivos para este mes. <a href="#objetivos">Apuntar</a></p>'}</section>
+          ${objs.length ? `<ul class="objs">${objs.map(o => `<li data-obj="${o.id}" class="${esHecho(o.estado) ? 'hecho' : ''}"><button class="check" data-ocheck>${esHecho(o.estado) ? '✓' : ''}</button><span>${esc(o.texto)}</span><small>${esc(o.cat || '')}</small></li>`).join('')}</ul>` : '<p class="vacio">Sin objetivos para este mes. <a href="#objetivos">Apuntar</a></p>'}
+          ${objsLargos.length ? `<p class="tenue" style="margin:10px 0 4px;font-size:12px">Del trimestre y del año</p><ul class="objs">${objsLargos.map(o => `<li data-obj="${o.id}" class="${esHecho(o.estado) ? 'hecho' : ''}"><button class="check" data-ocheck>${esHecho(o.estado) ? '✓' : ''}</button><span>${esc(o.texto)}</span><small>${o.periodo === 'año' ? 'Año' : o.trimestre + '.º trim.'}</small></li>`).join('')}</ul>` : ''}</section>
         <section class="tarjeta"><div class="t-cab"><h2>📊 Progreso de ${MESES[Mm - 1]}</h2><span class="tenue">${totH} de ${delMes.length}</span></div>
           <div class="progresos">${Object.entries(porCat).sort((a, b) => b[1].t - a[1].t).map(([k, v]) => `<div class="prog" style="--c:${catDe(k).color}"><span>${catDe(k).e} ${esc(catDe(k).n)}</span><div class="barra"><i style="width:${Math.round(v.h / v.t * 100)}%"></i></div><b>${v.h}/${v.t}</b></div>`).join('') || '<p class="vacio">Aún no hay tareas este mes</p>'}</div></section>
         <section class="tarjeta"><div class="t-cab"><h2>🧹 Revisión del domingo</h2><span class="tenue">semana del ${fechaDM(lunes)} · ${Object.values(rev).filter(Boolean).length}/${REVISION.length}</span></div>
