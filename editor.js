@@ -336,6 +336,7 @@ function editarObjetivo(o, { nueva = false } = {}) {
 function abrirElemento(x) {
   if (x.tipo === 'pieza') editarPieza(x.ref);
   else if (x.tipo === 'evento') editarEvento(x.ref);
+  else if (x.tipo === 'trabajo') editarTrabajo(x.ref);
   else editarTarea(x.ref);
 }
 
