@@ -30,7 +30,7 @@ VISTAS.tareas = (cont) => {
 
   // Meses con algo, para el selector
   const meses = [...new Set(elementos({ conEventos: false }).map(x => mesDe(x.fecha)).filter(Boolean))].sort();
-  const cats = [['todas', 'Todas'], ['rapida', '📝 Lista rápida'], ...Object.keys(CATS).map(k => [k, `${CATS[k].e} ${CATS[k].n}`]), ['redes', `${CAT_REDES.e} Redes`], ['eventos', `${CAT_EVENTO.e} Eventos`]];
+  const cats = [['todas', 'Todas'], ['rapida', '📝 Lista rápida'], ...catsVisibles(UI.tCat).map(k => [k, `${CATS[k].e} ${CATS[k].n}`]), ['redes', `${CAT_REDES.e} Redes`], ['eventos', `${CAT_EVENTO.e} Eventos`]];
   if (cat === 'rapida') {
     cont.innerHTML = `<div class="pagina tareas">
       ${cabecera('📝 Lista rápida', 'Cosas sueltas sin fecha ni categoría: apúntalas y táchalas.', '')}
@@ -78,7 +78,8 @@ function subCat(cat) {
   const t = { novela: 'Escritura, edición y todo lo de tus novelas.', web: 'Cambios y novedades de tu web.', newsletter: 'Cada envío y cada entrada del blog, con sus resultados.',
     formacion: 'Cursos y formaciones: qué harás cada día.', club: 'Tu club de lectura.', etsy: 'Tu tienda de Etsy.', ninos: 'Compras, reuniones, autorizaciones…',
     casa: 'Recados y cosas de casa. La lista de la compra está en Casa.', medicos: 'Citas y revisiones de toda la familia.', redes: 'Las piezas del batch y las tareas de redes. Guion, caption y pasos en Redes.', eventos: 'Citas y eventos del calendario.' };
-  return t[cat] || '';
+  // Si la categoría tiene otro nombre (o es nueva), la descripción de serie ya no le encaja
+  return catRenombrada(cat) ? '' : (t[cat] || '');
 }
 function listaAgrupada(lista, orden, est) {
   if (orden !== 'fecha') return lista.map(x => filaElemento(x, { franja: true, notas: true })).join('');
