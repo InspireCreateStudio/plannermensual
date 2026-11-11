@@ -23,6 +23,29 @@ const CAT_EVENTO = { n: 'Eventos', e: '📅', color: '#5b6bb5' };
 const CAT_TRABAJO = { n: 'Otros trabajos', e: '🖋️', color: '#6b7d3a' };
 const catDe = (k) => CATS[k] || (k === 'redes' ? CAT_REDES : k === 'eventos' ? CAT_EVENTO : k === 'trabajos' ? CAT_TRABAJO : { n: k, e: '•', color: '#888' });
 
+// ---------- tus categorías: cambiarles el nombre, ocultarlas y añadir nuevas (Ajustes) ----------
+const CATS_SERIE = Object.fromEntries(Object.entries(CATS).map(([k, c]) => [k, { n: c.n, e: c.e }]));
+const ESTADOS_NUEVA = ['💭Pendiente', '✍🏻En curso', '✅Completada', '❌Cancelada'];
+const COLORES_NUEVAS = ['#5b7fc7', '#c75b8f', '#6f9a3f', '#c4902c', '#3f9a9a', '#8a5bc7', '#c76a3f'];
+const ajustesCat = () => (typeof D !== 'undefined' && D && D.ajustes) || {};
+function aplicarCategorias() {
+  const A = ajustesCat(), P = A.categorias || {}, extra = A.catsExtra || [];
+  // Las añadidas que ya se han quitado
+  Object.keys(CATS).forEach(k => { if (!CATS_SERIE[k] && !extra.some(x => x.k === k)) delete CATS[k]; });
+  extra.forEach(x => {
+    CATS[x.k] = Object.assign(CATS[x.k] || { color: x.color }, { estados: x.k, hecho: '✅Completada', colorSerie: x.color });
+    if (D && D.listas && D.listas.estados && !D.listas.estados[x.k]) D.listas.estados[x.k] = [...ESTADOS_NUEVA];
+  });
+  Object.keys(CATS).forEach(k => {
+    const s = CATS_SERIE[k] || extra.find(x => x.k === k), p = P[k] || {};
+    CATS[k].n = p.n || s.n; CATS[k].e = p.e || s.e;
+  });
+}
+const catRenombrada = (k) => !!(ajustesCat().categorias || {})[k];
+const catOculta = (k) => (ajustesCat().catsOcultas || []).includes(k);
+// Las que se ven en Tareas, al crear una tarea y en el Calendario (más la de la tarea abierta, aunque esté oculta)
+const catsVisibles = (incluir) => Object.keys(CATS).filter(k => !catOculta(k) || k === incluir);
+
 const FORMATO_E = { Reel: '🎬', Carrusel: '🗂️', Post: '📷', Story: '⭕' };
 const COMIDAS = [['desayuno', '🥐 Desayuno'], ['almuerzo', '🍎 Almuerzo'], ['comida', '🍲 Comida'], ['merienda', '🧃 Merienda'], ['cena', '🌙 Cena']];
 const REVISION = ['🎬 Batch de la semana hecho', '📅 Eventos revisados con el calendario', '✉️ Newsletter programada', '💡 Ideas suficientes en el banco', '🧠 Descarga mental procesada'];
