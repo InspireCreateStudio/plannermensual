@@ -5,7 +5,7 @@
 //  la pestaña Config).
 // =====================================================================
 
-const LISTAS_EDITABLES = [
+const listasEditables = () => [
   ['Estados', [...Object.keys(CATS).map(k => [`estados.${k}`, `${CATS[k].e} ${CATS[k].n}`]), ['estados.redes', '📱 Redes (tareas)'], ['estados.eventos', '📅 Eventos'], ['estados.descarga', '🧠 Descarga mental'], ['estados.objetivos', '🎯 Objetivos']]],
   ['Tareas', [['prioridad', 'Prioridad'], ['energia', 'Energía'], ['personas', 'Personas (Médicos)']]],
   ['Descarga y objetivos', [['catDescarga', 'Categorías de la descarga'], ['catObjetivos', 'Categorías de objetivos']]],
@@ -25,6 +25,7 @@ VISTAS.ajustes = (cont) => {
         <label class="campo"><span>Aspecto</span><select id="aj-tema"><option value="auto">Como el sistema</option><option value="claro"${A.tema === 'claro' ? ' selected' : ''}>Claro</option><option value="noche"${A.tema === 'noche' ? ' selected' : ''}>Oscuro</option></select></label>
         <label class="campo"><span>Fechas clave que se ven en Inicio</span><input id="aj-claves" type="number" min="1" max="10" value="${A.diasClave || 4}"></label>
       </section>
+      ${tarjetaCategorias()}
       ${tarjetaColores()}
       ${tarjetaAvisos()}
       ${typeof tarjetaGoogle === 'function' ? tarjetaGoogle() : ''}
@@ -51,7 +52,7 @@ VISTAS.ajustes = (cont) => {
     </div>
     <section class="tarjeta" style="margin-top:18px"><h2>Listas de los desplegables</h2>
       <p class="suave" style="margin-top:0">Lo que era la pestaña Config. Una opción por línea; el emoji del principio es parte del nombre. <b>Ojo:</b> en los estados, lo que lleva «Completada», «Enviada», «Publicado», «Lanzado» o «Conseguido» cuenta como hecho, y «Cancelada», «Descartada» o «Eliminada» como anulado.</p>
-      ${LISTAS_EDITABLES.map(([g, ls]) => `<h4 class="sep-form">${g}</h4><div class="listas">${ls.map(([ruta, t]) => `<label class="campo"><span>${t}</span><textarea data-lista="${ruta}" rows="${Math.min(9, Math.max(3, leerLista(ruta).length + 1))}">${esc(leerLista(ruta).join('\n'))}</textarea></label>`).join('')}</div>`).join('')}
+      ${listasEditables().map(([g, ls]) => `<h4 class="sep-form">${g}</h4><div class="listas">${ls.map(([ruta, t]) => `<label class="campo"><span>${t}</span><textarea data-lista="${ruta}" rows="${Math.min(9, Math.max(3, leerLista(ruta).length + 1))}">${esc(leerLista(ruta).join('\n'))}</textarea></label>`).join('')}</div>`).join('')}
       <button class="btn peq" id="aj-listas-def">Volver a las listas de serie</button>
     </section>
     <section class="tarjeta peligro-zona"><h2>Empezar de cero</h2><p class="suave" style="margin-top:0">Borra todos los datos de este aparato (antes te descargo una copia).</p><button class="btn peligro" id="aj-borrar">Borrar todo</button></section>
@@ -59,6 +60,7 @@ VISTAS.ajustes = (cont) => {
   </div>`;
 
   enlazarTarjetaAvisos(cont);
+  enlazarTarjetaCategorias(cont);
   $('#aj-nombre', cont).onchange = (e) => { A.nombre = e.target.value.trim(); cambio(false); };
   $('#aj-tema', cont).onchange = (e) => { A.tema = e.target.value; aplicarTema(); cambio(false); };
   $('#aj-claves', cont).onchange = (e) => { A.diasClave = Math.max(1, Math.min(10, +e.target.value || 4)); cambio(false); };
@@ -79,7 +81,7 @@ VISTAS.ajustes = (cont) => {
     D.enlaces = e.target.value.split('\n').map(l => l.split('|')).filter(p => p[0].trim()).map(([t, ...u]) => ({ t: t.trim(), url: u.join('|').trim() }));
     cambio(false);
   };
-  $$('.cal-fila', cont).forEach(f => {
+  $$('#aj-cals .cal-fila', cont).forEach(f => {
     const c = D.calendarios[+f.dataset.i];
     $$('[data-c]', f).forEach(i => i.onchange = () => {
       const antes = c.nombre; c[i.dataset.c] = i.value.trim();
@@ -163,6 +165,69 @@ function aplicarTema() {
   aplicarColores(noche);
 }
 
+// ---------- tus categorías ----------
+function tarjetaCategorias() {
+  const A = D.ajustes, P = A.categorias || {}, oc = new Set(A.catsOcultas || []);
+  const fila = (k) => {
+    const nueva = !CATS_SERIE[k];
+    const boton = nueva ? '<button class="icono" data-cquitar title="Quitar esta categoría">✕</button>'
+      : P[k] ? `<button class="icono" data-cserie title="Volver a «${esc(CATS_SERIE[k].e + ' ' + CATS_SERIE[k].n)}»">↺</button>` : '';
+    return `<div class="cal-fila" data-catn="${k}"><input data-ce value="${esc(CATS[k].e)}" class="punto-in" aria-label="Emoji"><input data-cn value="${esc(CATS[k].n)}" aria-label="Nombre de la categoría"><label class="check-peq" title="Si no la usas, quítale la marca: deja de salir en Tareas, al crear una tarea y en el Calendario"><input type="checkbox" data-cver${oc.has(k) ? '' : ' checked'}> se ve</label>${boton}</div>`;
+  };
+  return `<section class="tarjeta" id="aj-cats"><h2>Tus categorías</h2>
+    <p class="suave" style="margin-top:0">Cámbiales el nombre o el emoji, oculta las que no uses y añade las que te falten. Lo que ya tienes apuntado se queda en su sitio.</p>
+    <div>${Object.keys(CATS).map(fila).join('')}</div>
+    <button class="btn peq" id="aj-addcat">+ Categoría</button>
+  </section>`;
+}
+function enlazarTarjetaCategorias(cont) {
+  const A = D.ajustes;
+  $$('[data-catn]', cont).forEach(f => {
+    const k = f.dataset.catn, nueva = (A.catsExtra || []).find(x => x.k === k);
+    const guardar = () => {
+      const n = $('[data-cn]', f).value.trim(), e = $('[data-ce]', f).value.trim();
+      if (nueva) { if (n) nueva.n = n; if (e) nueva.e = e; }
+      else {
+        const P = A.categorias || (A.categorias = {}), p = {};
+        if (n && n !== CATS_SERIE[k].n) p.n = n;
+        if (e && e !== CATS_SERIE[k].e) p.e = e;
+        if (Object.keys(p).length) P[k] = p; else delete P[k];
+      }
+      aplicarCategorias(); cambio();
+    };
+    $('[data-cn]', f).onchange = guardar;
+    $('[data-ce]', f).onchange = guardar;
+    $('[data-cver]', f).onchange = (ev) => {
+      const s = new Set(A.catsOcultas || []);
+      if (ev.target.checked) s.delete(k); else s.add(k);
+      A.catsOcultas = [...s];
+      if (!ev.target.checked && UI.tCat === k) { UI.tCat = 'todas'; guardarUI(); }
+      cambio();
+    };
+    const serie = $('[data-cserie]', f);
+    if (serie) serie.onclick = () => { delete (A.categorias || {})[k]; aplicarCategorias(); cambio(); };
+    const quitar = $('[data-cquitar]', f);
+    if (quitar) quitar.onclick = async () => {
+      const n = D.tareas.filter(t => t.cat === k).length;
+      if (n) return aviso(`«${CATS[k].n}» tiene ${plural(n, 'tarea', 'tareas')}: pásalas a otra categoría antes de quitarla, o desmarca «se ve» para ocultarla`);
+      if (!(await preguntar(`¿Quitar «${CATS[k].e} ${CATS[k].n}»?`, 'No tiene tareas, así que no se pierde nada.', 'Quitar categoría', true))) return;
+      A.catsExtra = (A.catsExtra || []).filter(x => x.k !== k);
+      A.catsOcultas = (A.catsOcultas || []).filter(x => x !== k);
+      delete D.listas.estados[k];
+      if (A.colores && A.colores.cats) delete A.colores.cats[k];
+      if (UI.tCat === k) { UI.tCat = 'todas'; guardarUI(); }
+      aplicarCategorias(); cambio();
+    };
+  });
+  $('#aj-addcat', cont).onclick = () => {
+    const extra = A.catsExtra || (A.catsExtra = []);
+    let k; do { k = 'cat_' + Math.random().toString(36).slice(2, 7); } while (CATS[k]);
+    extra.push({ k, n: 'Nueva categoría', e: '⭐', color: COLORES_NUEVAS[extra.length % COLORES_NUEVAS.length] });
+    aplicarCategorias(); cambio();
+    aviso('Categoría añadida al final de la lista: ponle nombre y emoji');
+  };
+}
+
 // ---------- colores ----------
 const PALETAS = [
   ['Terracota', '#9c4f35'], ['Salvia', '#5d7a62'], ['Bosque', '#2f5d50'], ['Rosa', '#b0506f'], ['Frambuesa', '#a3324f'],
@@ -177,9 +242,10 @@ const contraste = (a, b) => { const x = luz(a), y = luz(b); return (Math.max(x, 
 const textoSobre = (h) => contraste(h, '#ffffff') >= contraste(h, '#1c1916') ? '#ffffff' : '#1c1916';
 function coloresDe() { return (D && D.ajustes.colores) || {}; }
 function aplicarColores(noche = document.documentElement.dataset.theme === 'noche') {
+  aplicarCategorias();
   const C = coloresDe();
   // Categorías
-  Object.keys(CATS).forEach(k => { CATS[k].color = (C.cats || {})[k] || COLORES_SERIE[k]; });
+  Object.keys(CATS).forEach(k => { CATS[k].color = (C.cats || {})[k] || COLORES_SERIE[k] || CATS[k].colorSerie; });
   CAT_REDES.color = (C.cats || {}).redes || COLORES_SERIE.redes;
   CAT_EVENTO.color = (C.cats || {}).eventos || COLORES_SERIE.eventos;
   // Color principal (en oscuro, más claro para que se lea sobre fondo negro)
