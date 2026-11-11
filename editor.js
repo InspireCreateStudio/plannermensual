@@ -89,7 +89,7 @@ function camposTarea(cat) {
   const C = catDe(cat);
   const base = [
     { k: 'tarea', t: 'Tarea', tipo: 'texto' },
-    { k: 'cat', t: 'Categoría', tipo: 'select', op: [...Object.keys(CATS).map(k => CATS[k].e + ' ' + CATS[k].n), CAT_REDES.e + ' ' + CAT_REDES.n], vacio: false, ancho: 'medio' },
+    { k: 'cat', t: 'Categoría', tipo: 'select', op: [...catsVisibles(cat).map(k => CATS[k].e + ' ' + CATS[k].n), CAT_REDES.e + ' ' + CAT_REDES.n], vacio: false, ancho: 'medio' },
     { k: 'fecha', t: 'Fecha', tipo: 'fecha', ancho: 'medio' },
   ];
   if (C.detalle) base.push({ k: 'detalle', t: C.detalle, tipo: 'texto', ph: 'p. ej. 09:30–14:00 · Edición caps. 10-18' });
