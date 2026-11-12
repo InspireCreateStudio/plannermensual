@@ -8,7 +8,7 @@
 // =====================================================================
 
 const GOOGLE_CLIENT_ID = ''; // se puede dejar fijo aquí; si no, se pega en Ajustes
-const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
+const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events';
 const ARCHIVO = 'planner.json';
 
 const GG = {
