@@ -53,6 +53,7 @@ const REVISION = ['🎬 Batch de la semana hecho', '📅 Eventos revisados con e
 function datosVacios() {
   return {
     app: 'planner', version: 1,
+    perfil: { nombre: '', usuario: '', genero: '', foto: '', enlaces: { instagram: '', tiktok: '', amazon: '', web: '' }, otros: [] },
     tareas: [], rapida: [], candidaturas: [], habitos: [], habitosReg: {}, recetas: {}, descarga: [], objetivos: [], eventos: [], ideas: [], batch: [], compra: [],
     trabajos: [], ayuntamiento: tareasAytoIniciales(), ayto: { puesto: '', inicio: '' },
     menu: {}, cocina: {}, congelador: ['Pollo troceado', 'Carne picada', 'Pescado blanco'], despensa: ['Arroz', 'Pasta', 'Legumbres'],
@@ -111,6 +112,11 @@ function listasPorDefecto() {
 }
 // Rellena lo que falte (datos de una versión anterior o de una importación parcial)
 function completar(d) {
+  if (!d.perfil || typeof d.perfil !== 'object') d.perfil = { nombre: '', usuario: '', genero: '', foto: '', enlaces: {}, otros: [] };
+  ['nombre', 'usuario', 'genero', 'foto'].forEach(k => { if (d.perfil[k] == null) d.perfil[k] = ''; });
+  if (!d.perfil.enlaces || typeof d.perfil.enlaces !== 'object') d.perfil.enlaces = {};
+  ['instagram', 'tiktok', 'amazon', 'web'].forEach(k => { if (d.perfil.enlaces[k] == null) d.perfil.enlaces[k] = ''; });
+  if (!Array.isArray(d.perfil.otros)) d.perfil.otros = [];
   const base = datosVacios();
   if (d.ajustes && d.ajustes.nombre === undefined) d.ajustes.nombre = (d.calendarios || []).some(c => c.nombre === 'MARTA LOBO') ? 'Marta' : '';
   // «Qué suelo tener» se separa en Congelador y Despensa: lo que llevaba ❄️ pasa al congelador

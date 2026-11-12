@@ -20,6 +20,7 @@ VISTAS.ajustes = (cont) => {
   const A = D.ajustes;
   cont.innerHTML = `<div class="pagina ajustes">${cabecera('⚙️ Ajustes', '')}
     <div class="rejilla r2">
+      ${seccionPerfil()}
       <section class="tarjeta"><h2>Tú</h2>
         <label class="campo"><span>Tu nombre (para el saludo)</span><input id="aj-nombre" value="${esc(A.nombre || '')}" placeholder="Tu nombre"></label>
         <label class="campo"><span>Aspecto</span><select id="aj-tema"><option value="auto">Como el sistema</option><option value="claro"${A.tema === 'claro' ? ' selected' : ''}>Claro</option><option value="noche"${A.tema === 'noche' ? ' selected' : ''}>Oscuro</option></select></label>
@@ -113,6 +114,7 @@ VISTAS.ajustes = (cont) => {
     const aj = D.ajustes; D = datosVacios(); D.ajustes = aj; cambio(); aviso('Todo borrado. Tienes la copia en Descargas.');
   };
   enlazarColores(cont);
+  enlazarPerfil(cont);
   if (typeof enlazarGoogle === 'function') enlazarGoogle(cont);
 };
 

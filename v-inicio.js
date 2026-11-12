@@ -49,9 +49,10 @@ VISTAS.inicio = (cont) => {
   const fechasClave = D.eventos.filter(e => e.tipo !== 'Recurrente' && e.mantener !== 'No' && e.fecha >= H && D.clave.includes(e.cal)).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, D.ajustes.diasClave || 4);
 
   cont.innerHTML = `<div class="pagina inicio">
-    <header class="cab-pag hola"><div><h1>${saludo}${D.ajustes.nombre ? ', ' + esc(D.ajustes.nombre) : ''}</h1>
+    <header class="cab-pag hola"><div><h1>${saludo}${(n => n ? ', ' + esc(n) : '')(D.ajustes.nombre || String((D.perfil && D.perfil.nombre) || '').trim().split(/\s+/)[0])}</h1>
       <p class="sub">${fechaLarga(H)}${fr ? ` · <b>${iconoFranja(fr)} ${esc(fr)}</b>` : ''}${ex ? ` · 🧒 ${esc(ex)}` : ''}</p></div>
       <div class="acciones-pag"><button class="btn" id="in-apunte">🧠 Apuntar algo</button><button class="btn prim" id="in-nueva">+ Tarea</button></div></header>
+    ${tarjetaPerfil()}
     <div class="avisos-in">${avisos.map(a => `<div>${a}</div>`).join('')}</div>
     <div class="rejilla-in">
       <div class="col">
@@ -92,6 +93,7 @@ VISTAS.inicio = (cont) => {
   enlazarItems($('#in-semana', cont), semana);
   enlazarItems($('#in-urg', cont), urgentes);
   enlazarItems($('#in-lig', cont), ligeras);
+  if ($('#in-perfil', cont)) $('#in-perfil', cont).onclick = () => irA('ajustes');
   $('#in-nueva', cont).onclick = () => nuevaTarea();
   $('#in-apunte', cont).onclick = () => apunteRapido();
   $$('[data-rev]', cont).forEach(c => c.onchange = () => { const r = D.revision[lunes] || (D.revision[lunes] = {}); r[c.dataset.rev] = c.checked; cambio(); });
