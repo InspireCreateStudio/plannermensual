@@ -48,7 +48,7 @@ VISTAS.inicio = (cont) => {
   const rev = D.revision[lunes] || {};
   const fechasClave = D.eventos.filter(e => e.tipo !== 'Recurrente' && e.mantener !== 'No' && e.fecha >= H && D.clave.includes(e.cal)).sort((a, b) => a.fecha.localeCompare(b.fecha)).slice(0, D.ajustes.diasClave || 4);
 
-  cont.innerHTML = `<div class="pagina inicio">
+  cont.innerHTML = `<div class="pagina inicio"><div class="apps-barra"></div>
     <header class="cab-pag hola"><div><h1>${saludo}${(n => n ? ', ' + esc(n) : '')(D.ajustes.nombre || String((D.perfil && D.perfil.nombre) || '').trim().split(/\s+/)[0])}</h1>
       <p class="sub">${fechaLarga(H)}${fr ? ` · <b>${iconoFranja(fr)} ${esc(fr)}</b>` : ''}${ex ? ` · 🧒 ${esc(ex)}` : ''}</p></div>
       <div class="acciones-pag"><button class="btn" id="in-apunte">🧠 Apuntar algo</button><button class="btn prim" id="in-nueva">+ Tarea</button></div></header>
