@@ -14,9 +14,9 @@
   };
   const APPS = [
     { k: 'planner', i: '📅', n: 'Planner' },
-    { k: 'centro', i: '📊', n: 'Centro de Control', url: BASE + 'centrodecontrol/' },
+    { k: 'kit', i: '📚', n: 'Kit Escritoras', url: BASE + 'kitescritoras/' },
     { k: 'novelia', i: '✍️', n: 'Novelia', url: BASE + 'novelia-studio/' },
-    { k: 'kit', i: '📚', n: 'Kit', url: BASE + 'kitescritoras/' },
+    { k: 'centro', i: '📊', n: 'Centro de Control', url: BASE + 'centrodecontrol/' },
   ];
   const CLAVE = 'ics-apps';
   function leer() {
