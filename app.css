@@ -583,3 +583,30 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .perfil-links a { color: var(--tinta); text-decoration: none; border-bottom: 2px solid var(--acento-claro); font-weight: 600; }
 .perfil-links a:hover { border-color: var(--acento); }
 @media (max-width: 700px) { .perfil-in { flex-wrap: wrap; gap: 12px; } .perfil-in .perfil-nom { font-size: 22px; } }
+
+/* Casa › Gastos */
+.cg-cab { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0 10px; }
+.cg-mes { display: inline-flex; align-items: center; gap: 8px; } .cg-mes b { min-width: 120px; text-align: center; font: 400 18px var(--serif); text-transform: capitalize; }
+.cifras.cg-cifras { grid-template-columns: repeat(3, 1fr); }
+.cifras small { font-size: 12px; } .verde-t { color: #2f8a57; }
+.cg-cats { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 14px; }
+.cg-cat { display: grid; grid-template-columns: 210px 1fr 90px 44px; gap: 10px; align-items: center; border: 0; background: none; padding: 3px 6px; border-radius: 8px; text-align: left; color: inherit; cursor: pointer; }
+.cg-cat:hover, .cg-cat.on { background: var(--panel); }
+.cg-cat i { display: block; height: 10px; border-radius: 99px; width: var(--w); background: hsl(var(--h) 55% 62%); min-width: 4px; }
+.cg-cat b { text-align: right; font-weight: 600; } .cg-cat small { color: var(--suave); text-align: right; }
+.pill-cc { display: inline-block; border-radius: 999px; padding: 1px 9px; font: 600 11.5px var(--sans); background: hsl(var(--h) 60% 92%); color: hsl(var(--h) 45% 32%); white-space: nowrap; }
+.pill-cc.gris { background: var(--panel); color: var(--suave); }
+.tabla-wrap { overflow-x: auto; border: 1px solid var(--linea); border-radius: var(--radio); background: var(--hoja); }
+.tabla { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.tabla th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); background: var(--panel); padding: 7px 10px; font-weight: 600; }
+.tabla td { padding: 6px 10px; border-top: 1px solid var(--linea); vertical-align: middle; }
+.tabla .num { text-align: right; white-space: nowrap; } .tabla tfoot td { background: var(--papel); }
+.cg-tabla tbody tr { cursor: pointer; } .cg-tabla tbody tr:hover { background: var(--papel); }
+.cg-tabla small.bloque { display: block; color: var(--suave); }
+.cg-sel { border: 0; border-radius: 999px; padding: 3px 8px; font: 600 12px var(--sans); background: hsl(var(--h) 60% 92%); color: hsl(var(--h) 45% 30%); max-width: 190px; }
+.cg-anio td, .cg-anio th { padding: 5px 7px; font-size: 12.5px; }
+.btn-x { border: 0; background: none; color: var(--tenue); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 6px; } .btn-x:hover { color: var(--rojo); background: var(--panel); }
+.cg-prev { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.cg-prev-lista { max-height: 300px; overflow-y: auto; border: 1px solid var(--linea); border-radius: 10px; padding: 4px 8px; font-size: 13px; }
+.cg-prev-lista label { display: grid; grid-template-columns: 18px 56px 1fr auto; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--linea); align-items: center; }
+@media (max-width: 760px) { .cifras.cg-cifras { grid-template-columns: 1fr; } .cg-cat { grid-template-columns: 1fr 70px 80px; } .cg-cat small { display: none; } }

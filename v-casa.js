@@ -8,11 +8,11 @@ VISTAS.casa = (cont) => {
   const p = UI.cPest || 'compra';
   const pend = D.compra.filter(c => !c.comprado).length;
   cont.innerHTML = `<div class="pagina ancha casa">${cabecera('🏡 Casa', '')}
-    ${pestanas([['compra', `🛒 Lista de la compra${pend ? ` (${pend})` : ''}`], ['menu', '🍽️ Menú'], ['tareas', '🏡 Tareas de casa']], p, 'cPest')}
+    ${pestanas([['compra', `🛒 Lista de la compra${pend ? ` (${pend})` : ''}`], ['menu', '🍽️ Menú'], ['tareas', '🏡 Tareas de casa'], ['gastos', '💶 Gastos']], p, 'cPest')}
     <div id="ca-cuerpo"></div></div>`;
   enlazarPestanas(cont);
   const c = $('#ca-cuerpo', cont);
-  if (p === 'menu') casaMenu(c); else if (p === 'tareas') casaTareas(c); else casaCompra(c);
+  if (p === 'gastos') casaGastos(c); else if (p === 'menu') casaMenu(c); else if (p === 'tareas') casaTareas(c); else casaCompra(c);
 };
 
 // ---------- lista de la compra ----------
