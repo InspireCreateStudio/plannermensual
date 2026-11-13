@@ -4,6 +4,7 @@
 //  por categoría (supermercado, suscripciones, colegio…), con el
 //  movimiento del banco subido desde un CSV o Excel.
 // =====================================================================
+UI.cgBuscar = ''; // la búsqueda no se guarda de una vez para otra
 const CATS_CASA = ['Supermercado', 'Casa (alquiler o hipoteca)', 'Hogar y bricolaje', 'Luz, agua y gas', 'Internet y móvil', 'Suscripciones', 'Colegio', 'Extraescolares', 'Transporte', 'Coche', 'Salud y farmacia', 'Ropa', 'Ocio', 'Restaurantes', 'Seguros', 'Mascotas', 'Regalos', 'Viajes', 'Impuestos y tasas', 'Otros'];
 // Palabras que delatan la categoría (además de lo que tú vayas corrigiendo, que se recuerda)
 const PISTAS_CASA = [
@@ -100,14 +101,33 @@ function casaGastos(c) {
       <tfoot><tr><td><b>Total</b></td>${meses.map(m => `<td class="num"><b>${n0(tm(m))}</b></td>`).join('')}<td class="num"><b>${eurC(delAnio.reduce((s, g) => s + +g.importe, 0))}</b></td><td class="num">${eurC(delAnio.reduce((s, g) => s + +g.importe, 0) / mesesConGasto)}</td></tr></tfoot></table></div>
       <p class="nota">En euros. «Al mes» es la media de los meses en los que hay gastos apuntados (${mesesConGasto}).</p>`;
   };
+  // Buscar un concepto en todos los gastos (de cualquier fecha) y pasarlos a una categoría
+  const busca = normCasa(UI.cgBuscar || '');
+  const encontrados = busca ? D.gastosCasa.filter(g => normCasa(g.concepto + ' ' + (g.notas || '')).includes(busca)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')) : [];
+  const buscar = () => {
+    if (!encontrados.length) return `<p class="vacio">Ningún gasto tiene «${esc(UI.cgBuscar)}» en el concepto.</p>`;
+    const cuentaCat = {}; encontrados.forEach(g => { cuentaCat[g.cat || 'Otros'] = (cuentaCat[g.cat || 'Otros'] || 0) + 1; });
+    const masUsada = Object.entries(cuentaCat).sort((a, b) => b[1] - a[1])[0][0];
+    const regla = (D.reglasCasa || []).find(r => r.clave === busca);
+    return `<div class="cg-pasar"><b>${plural(encontrados.length, 'gasto', 'gastos')} con «${esc(UI.cgBuscar)}»</b> · ${eurC(encontrados.reduce((s, g) => s + +g.importe, 0))}
+        <span class="hueco"></span><span>Pasarlos todos a</span>
+        <select id="cg-pcat">${catsCasa().map(x => `<option${x === (regla ? regla.cat : masUsada) ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
+        <label class="cg-recordar"><input type="checkbox" id="cg-precord" checked> y también los que lleguen</label>
+        <button class="btn prim" id="cg-paplicar">Pasar</button></div>
+      ${regla ? `<p class="nota">Ya tienes guardado que «${esc(regla.clave)}» va a ${esc(regla.cat)}.</p>` : ''}
+      <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>
+      ${encontrados.map(g => `<tr data-id="${g.id}"><td>${g.fecha ? +g.fecha.slice(8) + ' ' + MESES_C[+g.fecha.slice(5, 7) - 1] + ' ' + g.fecha.slice(2, 4) : ''}</td><td>${esc(g.concepto)}</td><td>${pill(g.cat)}</td><td class="num">${eurC(g.importe)}</td></tr>`).join('')}
+      </tbody></table></div>`;
+  };
   c.innerHTML = `<div class="cg-cab">
       <div class="cg-mes"><button class="btn peq" id="cg-ant" aria-label="Mes anterior">‹</button><b>${vista === 'anio' ? Y : nombreM(mes)}</b><button class="btn peq" id="cg-sig" aria-label="Mes siguiente">›</button></div>
       <div class="segmentado peq"><button class="${vista === 'mes' ? 'on' : ''}" data-cgv="mes">Mes</button><button class="${vista === 'anio' ? 'on' : ''}" data-cgv="anio">Resumen del año</button></div>
       <select id="cg-filtro" class="cg-filtro${filtro ? ' on' : ''}" aria-label="Tipo de gasto"><option value="">Todos los gastos</option>${catsCasa().map(x => `<option${x === filtro ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
+      <input type="search" id="cg-buscar" class="cg-buscar" placeholder="🔍 Buscar concepto…" value="${esc(UI.cgBuscar || '')}" aria-label="Buscar concepto">
       <span class="hueco"></span>
       <button class="btn" id="cg-csv">⬆️ Subir movimientos del banco</button><button class="btn prim" id="cg-nuevo">+ Gasto</button>
       <input type="file" id="cg-file" accept=".csv,.txt,.xlsx,.xls,text/csv" hidden></div>
-    ${vista === 'anio' ? (filtro ? anioCat() : anio()) : `
+    ${busca ? buscar() : vista === 'anio' ? (filtro ? anioCat() : anio()) : `
     <div class="cifras cg-cifras"><div><span>Gastado en ${MESES[+mes.slice(5) - 1]}</span><b>${eurC(total)}</b>${totalAnt ? `<small class="${total > totalAnt ? 'rojo' : 'verde-t'}">${total > totalAnt ? '▲' : '▼'} ${eurC(Math.abs(total - totalAnt))} que el mes anterior</small>` : ''}</div>
       <div><span>Media al mes en ${Y}</span><b>${eurC(delAnio.reduce((s, g) => s + +g.importe, 0) / mesesConGasto)}</b></div>
       <div><span>Lo que más</span><b>${cats[0] ? esc(cats[0][0]) : '—'}</b>${cats[0] ? `<small>${eurC(cats[0][1])}</small>` : ''}</div></div>
@@ -120,6 +140,18 @@ function casaGastos(c) {
       </tbody><tfoot><tr><td></td><td><b>Total${filtro ? ' ' + esc(filtro) : ''}</b></td><td></td><td class="num"><b>${eurC(filas.reduce((s, g) => s + +g.importe, 0))}</b></td><td></td></tr></tfoot></table></div>`
       : `<div class="vacio"><p>No hay gastos de casa en ${nombreM(mes)}.</p><p class="tenue">Apúntalos con <b>+ Gasto</b> o sube el archivo de movimientos de tu banco: la app separa los gastos, los clasifica (supermercado, suscripciones, colegio…) y aprende de lo que corrijas.</p></div>`}`}`;
 
+  const bq = $('#cg-buscar', c); let tBq;
+  bq.oninput = () => { clearTimeout(tBq); tBq = setTimeout(() => { UI.cgBuscar = bq.value; pintar(); const n = $('#cg-buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 250); };
+  bq.onkeydown = (e) => { if (e.key === 'Escape') { UI.cgBuscar = ''; pintar(); } };
+  const pa = $('#cg-paplicar', c);
+  if (pa) pa.onclick = () => {
+    const cat = $('#cg-pcat', c).value, recordar = $('#cg-precord', c).checked;
+    const antes = encontrados.map(g => [g, g.cat]), reglasAntes = (D.reglasCasa || []).slice();
+    encontrados.forEach(g => { g.cat = cat; });
+    if (recordar) { D.reglasCasa = (D.reglasCasa || []).filter(r => r.clave !== busca); D.reglasCasa.push({ clave: busca, cat, mano: true }); }
+    cambio();
+    aviso(`${plural(encontrados.length, 'gasto pasado', 'gastos pasados')} a ${cat}${recordar ? '; los próximos irán solos' : ''}`, { t: 'Deshacer', fn: () => { antes.forEach(([g, c0]) => g.cat = c0); D.reglasCasa = reglasAntes; cambio(); } });
+  };
   const mover = (k) => { const d = aFecha(mes + '-01'); d.setMonth(d.getMonth() + (vista === 'anio' ? 12 * k : k)); UI.cgMes = aStr(d).slice(0, 7); guardarUI(); pintar(); };
   $('#cg-ant', c).onclick = () => mover(-1); $('#cg-sig', c).onclick = () => mover(1);
   $('#cg-filtro', c).onchange = (e) => { UI.cgCat = e.target.value; guardarUI(); pintar(); };

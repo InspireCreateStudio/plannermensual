@@ -631,3 +631,8 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .cg-conc { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 18px; margin-bottom: 8px; }
 .cg-conc div { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; font-size: 13px; border-bottom: 1px solid var(--linea); padding: 4px 0; } .cg-conc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cg-tabla tr.cg-sub td { background: var(--panel); font-weight: 600; font-size: 12.5px; text-transform: capitalize; cursor: default; }
+.cg-buscar { border-radius: 999px; padding: 6px 12px; font-size: 13px; width: 200px; }
+.cg-pasar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: var(--hoja); border: 1px solid var(--linea); border-radius: var(--radio); padding: 10px 14px; margin-bottom: 10px; font-size: 13.5px; }
+.cg-pasar select { max-width: 220px; padding: 5px 9px; }
+.cg-recordar { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; } .cg-recordar input { width: auto; margin: 0; }
+.cg-cab .cg-buscar { width: 170px; } .cg-cab .cg-filtro { max-width: 190px; }
