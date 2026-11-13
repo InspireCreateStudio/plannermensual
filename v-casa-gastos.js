@@ -44,6 +44,11 @@ const eurC = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency
 const catsCasa = () => [...new Set([...(D.listas.catCasa || CATS_CASA), ...(D.gastosCasa || []).map(g => g.cat).filter(Boolean)])];
 const colorCatC = (c) => { let h = 0; for (const ch of String(c)) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
 
+VISTAS.gastos = (cont) => {
+  cont.innerHTML = `<div class="pagina ancha">${cabecera('💶 Gastos de casa', '')}<div id="cg-cuerpo"></div></div>`;
+  casaGastos($('#cg-cuerpo', cont));
+};
+
 function casaGastos(c) {
   if (!D.gastosCasa) D.gastosCasa = [];
   const mes = UI.cgMes || hoy().slice(0, 7), Y = mes.slice(0, 4), vista = UI.cgVista || 'mes';
