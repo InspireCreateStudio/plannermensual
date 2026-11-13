@@ -47,7 +47,9 @@ function recordarCat(concepto, cat) {
   D.reglasCasa.push({ clave: k, cat });
 }
 const eurC = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(Math.round((Number(v) || 0) * 100) / 100);
-const catsCasa = () => [...new Set([...(D.listas.catCasa || CATS_CASA), ...(D.gastosCasa || []).map(g => g.cat).filter(Boolean)])];
+// Orden alfabético, con «Otros» siempre al final
+const ordenCats = (xs) => xs.slice().sort((a, b) => (a === 'Otros') - (b === 'Otros') || a.localeCompare(b, 'es', { sensitivity: 'base' }));
+const catsCasa = () => ordenCats([...new Set([...(D.listas.catCasa || CATS_CASA), ...(D.gastosCasa || []).map(g => g.cat).filter(Boolean)])]);
 const colorCatC = (c) => { let h = 0; for (const ch of String(c)) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
 
 VISTAS.gastos = (cont) => {
@@ -349,7 +351,7 @@ function cargarExcel() {
 
 // ---------- Ajustes › Gastos de casa: categorías y conceptos ----------
 (function () {
-  const lista = () => D.listas.catCasa || (D.listas.catCasa = CATS_CASA.slice());
+  const lista = () => { const L = D.listas.catCasa || (D.listas.catCasa = CATS_CASA.slice()); const o = ordenCats(L); L.splice(0, L.length, ...o); return L; };
   const cuenta = (cat) => (D.gastosCasa || []).filter(g => g.cat === cat).length;
   const seccion = () => {
     const cats = lista();
