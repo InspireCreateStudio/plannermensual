@@ -32,6 +32,7 @@ VISTAS.inicio = (cont) => {
   if (tocaEm.length) avisos.push(`<a href="#empleo">💼 Toca preguntar por ${tocaEm.length === 1 ? 'tu candidatura en ' + esc(tocaEm[0].empresa || tocaEm[0].puesto) : tocaEm.length + ' candidaturas'}</a>`);
   const sinProc = D.descarga.filter(d => /Sin procesar/.test(d.estado || '')).length;
   if (sinProc) avisos.push(`🧠 Descarga mental: ${plural(sinProc, 'apunte sin procesar', 'apuntes sin procesar')}`);
+  try { if (window.avisosGastos) avisos.push(...window.avisosGastos()); } catch (e) { console.error(e); }
 
   // --- objetivos y progreso del mes ---
   const ym = mesDe(H);

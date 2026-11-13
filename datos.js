@@ -55,7 +55,7 @@ function datosVacios() {
     app: 'planner', version: 1,
     perfil: { nombre: '', usuario: '', genero: '', foto: '', enlaces: { instagram: '', tiktok: '', amazon: '', web: '' }, otros: [] },
     tareas: [], rapida: [], candidaturas: [], habitos: [], habitosReg: {}, recetas: {}, descarga: [], objetivos: [], eventos: [], ideas: [], batch: [], compra: [],
-    trabajos: [], gastosCasa: [], reglasCasa: [], ayuntamiento: tareasAytoIniciales(), ayto: { puesto: '', inicio: '' },
+    trabajos: [], gastosCasa: [], reglasCasa: [], ingresosCasa: [], fijosCasa: [], presupuestosCasa: {}, ayuntamiento: tareasAytoIniciales(), ayto: { puesto: '', inicio: '' },
     menu: {}, cocina: {}, congelador: ['Pollo troceado', 'Carne picada', 'Pescado blanco'], despensa: ['Arroz', 'Pasta', 'Legumbres'],
     revision: {},
     calendarios: [
@@ -311,7 +311,7 @@ function importarDatos(j, modo) {
     D = completar({ ...datosVacios(), ...nuevo, listas: { ...listasPorDefecto(), ...(nuevo.listas || {}) }, ajustes: aj });
   } else {
     // Juntar: añade lo que no esté (por id) y no toca lo que ya tienes
-    ['tareas', 'rapida', 'candidaturas', 'habitos', 'descarga', 'objetivos', 'eventos', 'ideas', 'batch', 'compra', 'ayuntamiento', 'trabajos', 'gastosCasa'].forEach(k => {
+    ['tareas', 'rapida', 'candidaturas', 'habitos', 'descarga', 'objetivos', 'eventos', 'ideas', 'batch', 'compra', 'ayuntamiento', 'trabajos', 'gastosCasa', 'ingresosCasa', 'fijosCasa'].forEach(k => {
       if (!D[k]) D[k] = [];
       const ids = new Set(D[k].map(o => o.id));
       (nuevo[k] || []).forEach(o => { if (!ids.has(o.id)) D[k].push(o); });

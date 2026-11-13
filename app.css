@@ -636,3 +636,22 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .cg-pasar select { max-width: 220px; padding: 5px 9px; }
 .cg-recordar { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 13px; } .cg-recordar input { width: auto; margin: 0; }
 .cg-cab .cg-buscar { width: 170px; } .cg-cab .cg-filtro { max-width: 190px; }
+/* Gastos: presupuestos, fijos, ingresos, suscripciones, repartir */
+.cg-acc { margin-top: -2px; }
+.cifras.cg-cifras.cuatro { grid-template-columns: repeat(4, 1fr); }
+.cg-cat { grid-template-columns: 210px 1fr 90px 64px; }
+.cg-barra { position: relative; display: block; height: 10px; }
+.cg-barra i { position: absolute; left: 0; top: 0; bottom: 0; }
+.cg-barra em { position: absolute; top: -4px; bottom: -4px; left: var(--p); width: 2px; background: var(--tinta); opacity: .55; border-radius: 2px; }
+.cg-cat.cerca i { background: #e0a43a; } .cg-cat.pasado i { background: #d0574b; } .cg-cat.pasado b { color: #c0453a; }
+.cg-cat.cerca small, .cg-cat.pasado small { font-weight: 600; }
+.cg-meses { position: relative; } .cg-linea { position: absolute; left: 0; right: 0; bottom: calc(36px + (100% - 36px) * var(--p) / 100%); border-top: 2px dashed var(--tinta); opacity: .3; pointer-events: none; }
+.cg-mesbar.pasado i { background: #d0574b; }
+.cg-tabla tr.previsto td { opacity: .6; } .cg-tabla tr.previsto td:first-child { font-style: italic; }
+.cg-tabla tr.parada td, .cg-subs tr.parada td { opacity: .55; }
+.cg-partes { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.cg-anio tfoot tr.cg-ing td, .cg-anio tfoot tr.cg-aho td { background: var(--hoja); }
+.cg-ingt td:first-child { width: 70px; } .cg-ingchk { margin: 6px 0 10px; display: flex; white-space: normal; }
+.rp-fila { display: grid; grid-template-columns: 1fr 120px 28px; gap: 8px; margin-bottom: 6px; align-items: center; }
+.ajg-fila { grid-template-columns: 22px 1fr 76px 30px 28px; } .ajg-pres { padding: 5px 6px !important; text-align: right; }
+@media (max-width: 760px) { .cifras.cg-cifras.cuatro { grid-template-columns: 1fr 1fr; } .cg-cat { grid-template-columns: 1fr 70px 70px; } }
