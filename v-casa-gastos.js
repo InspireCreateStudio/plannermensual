@@ -70,6 +70,25 @@ function casaGastos(c) {
   const nombreM = (m) => `${MESES[+m.slice(5) - 1]} ${m.slice(0, 4)}`;
   const pill = (cat) => `<span class="pill-cc" style="--h:${colorCatC(cat)}">${esc(cat || 'Otros')}</span>`;
   // Resumen del año: categorías × meses
+  const anioCat = () => {
+    const xs = delAnio.filter(g => (g.cat || 'Otros') === filtro).sort((a, b) => a.fecha.localeCompare(b.fecha));
+    if (!xs.length) return `<p class="vacio">No hay gastos de ${esc(filtro)} en ${Y}.</p>`;
+    const meses = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
+    const tm = meses.map(m => xs.filter(g => g.fecha.startsWith(m)).reduce((s, g) => s + +g.importe, 0));
+    const tot = tm.reduce((a, b) => a + b, 0), conG = tm.filter(Boolean).length || 1, max = Math.max(...tm, 1);
+    const totalAnio = delAnio.reduce((s, g) => s + +g.importe, 0);
+    const porConc = {}; xs.forEach(g => { const k = claveConcepto(g.concepto) || normCasa(g.concepto); (porConc[k] = porConc[k] || { n: 0, t: 0, nom: g.concepto }).n++; porConc[k].t += +g.importe; });
+    const conc = Object.values(porConc).sort((a, b) => b.t - a.t);
+    return `<div class="cifras cg-cifras"><div><span>${esc(filtro)} en ${Y}</span><b>${eurC(tot)}</b><small>${Math.round(tot / (totalAnio || 1) * 100)} % de todo lo gastado</small></div>
+        <div><span>Media al mes</span><b>${eurC(tot / conG)}</b><small>${plural(conG, 'mes con gastos', 'meses con gastos')}</small></div>
+        <div><span>Apuntes</span><b>${xs.length}</b><small>el mayor, ${eurC(Math.max(...xs.map(g => +g.importe)))}</small></div></div>
+      <div class="cg-meses">${meses.map((m, i) => `<button class="cg-mesbar${tm[i] ? '' : ' cero'}" data-cgir="${m}" title="Ver ${MESES[i]}"><i style="--alto:${Math.round(tm[i] / max * 100)}%;--h:${colorCatC(filtro)}"></i><b>${tm[i] ? new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(tm[i]) : ''}</b><span>${MESES_C[i]}</span></button>`).join('')}</div>
+      ${conc.length > 1 ? `<h3 class="cg-h3">Por concepto</h3><div class="cg-conc">${conc.slice(0, 12).map(c => `<div><span>${esc(c.nom)}</span><small class="tenue">${c.n} ×</small><b>${eurC(c.t)}</b></div>`).join('')}</div>` : ''}
+      <h3 class="cg-h3">Todos los gastos de ${esc(filtro)} en ${Y}</h3>
+      <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Importe</th></tr></thead><tbody>
+      ${meses.map((m, i) => { const ms = xs.filter(g => g.fecha.startsWith(m)); return ms.length ? `<tr class="cg-sub"><td colspan="2">${MESES[i]}</td><td class="num">${eurC(tm[i])}</td></tr>` + ms.map(g => `<tr data-id="${g.id}"><td>${+g.fecha.slice(8)} ${MESES_C[i]}</td><td>${esc(g.concepto)}${g.notas ? `<small class="bloque">${esc(g.notas)}</small>` : ''}</td><td class="num">${eurC(g.importe)}</td></tr>`).join('') : ''; }).join('')}
+      </tbody><tfoot><tr><td></td><td><b>Total ${Y}</b></td><td class="num"><b>${eurC(tot)}</b></td></tr></tfoot></table></div>`;
+  };
   const anio = () => {
     const meses = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
     const cs = [...new Set(delAnio.map(g => g.cat || 'Otros'))].sort((a, b) => delAnio.filter(g => (g.cat || 'Otros') === b).reduce((s, g) => s + +g.importe, 0) - delAnio.filter(g => (g.cat || 'Otros') === a).reduce((s, g) => s + +g.importe, 0));
@@ -77,17 +96,18 @@ function casaGastos(c) {
     const tm = (m) => delAnio.filter(g => g.fecha.startsWith(m)).reduce((s, g) => s + +g.importe, 0);
     const n0 = (x) => x ? new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(x) : '<span class="tenue">·</span>';
     return !delAnio.length ? `<p class="vacio">Aún no hay gastos de casa en ${Y}.</p>` : `<div class="tabla-wrap"><table class="tabla cg-anio"><thead><tr><th>Categoría</th>${meses.map(m => `<th class="num">${MESES_C[+m.slice(5) - 1]}</th>`).join('')}<th class="num">Total</th><th class="num">Al mes</th></tr></thead>
-      <tbody>${cs.map(cat => { const t = meses.reduce((s, m) => s + v(cat, m), 0); return `<tr><td>${pill(cat)}</td>${meses.map(m => `<td class="num">${n0(v(cat, m))}</td>`).join('')}<td class="num"><b>${eurC(t)}</b></td><td class="num">${eurC(t / mesesConGasto)}</td></tr>`; }).join('')}</tbody>
+      <tbody>${cs.map(cat => { const t = meses.reduce((s, m) => s + v(cat, m), 0); return `<tr data-cgfila="${esc(cat)}" title="Ver todo lo de ${esc(cat)}"><td>${pill(cat)}</td>${meses.map(m => `<td class="num">${n0(v(cat, m))}</td>`).join('')}<td class="num"><b>${eurC(t)}</b></td><td class="num">${eurC(t / mesesConGasto)}</td></tr>`; }).join('')}</tbody>
       <tfoot><tr><td><b>Total</b></td>${meses.map(m => `<td class="num"><b>${n0(tm(m))}</b></td>`).join('')}<td class="num"><b>${eurC(delAnio.reduce((s, g) => s + +g.importe, 0))}</b></td><td class="num">${eurC(delAnio.reduce((s, g) => s + +g.importe, 0) / mesesConGasto)}</td></tr></tfoot></table></div>
       <p class="nota">En euros. «Al mes» es la media de los meses en los que hay gastos apuntados (${mesesConGasto}).</p>`;
   };
   c.innerHTML = `<div class="cg-cab">
       <div class="cg-mes"><button class="btn peq" id="cg-ant" aria-label="Mes anterior">‹</button><b>${vista === 'anio' ? Y : nombreM(mes)}</b><button class="btn peq" id="cg-sig" aria-label="Mes siguiente">›</button></div>
       <div class="segmentado peq"><button class="${vista === 'mes' ? 'on' : ''}" data-cgv="mes">Mes</button><button class="${vista === 'anio' ? 'on' : ''}" data-cgv="anio">Resumen del año</button></div>
+      <select id="cg-filtro" class="cg-filtro${filtro ? ' on' : ''}" aria-label="Tipo de gasto"><option value="">Todos los gastos</option>${catsCasa().map(x => `<option${x === filtro ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
       <span class="hueco"></span>
       <button class="btn" id="cg-csv">⬆️ Subir movimientos del banco</button><button class="btn prim" id="cg-nuevo">+ Gasto</button>
       <input type="file" id="cg-file" accept=".csv,.txt,.xlsx,.xls,text/csv" hidden></div>
-    ${vista === 'anio' ? anio() : `
+    ${vista === 'anio' ? (filtro ? anioCat() : anio()) : `
     <div class="cifras cg-cifras"><div><span>Gastado en ${MESES[+mes.slice(5) - 1]}</span><b>${eurC(total)}</b>${totalAnt ? `<small class="${total > totalAnt ? 'rojo' : 'verde-t'}">${total > totalAnt ? '▲' : '▼'} ${eurC(Math.abs(total - totalAnt))} que el mes anterior</small>` : ''}</div>
       <div><span>Media al mes en ${Y}</span><b>${eurC(delAnio.reduce((s, g) => s + +g.importe, 0) / mesesConGasto)}</b></div>
       <div><span>Lo que más</span><b>${cats[0] ? esc(cats[0][0]) : '—'}</b>${cats[0] ? `<small>${eurC(cats[0][1])}</small>` : ''}</div></div>
@@ -102,6 +122,9 @@ function casaGastos(c) {
 
   const mover = (k) => { const d = aFecha(mes + '-01'); d.setMonth(d.getMonth() + (vista === 'anio' ? 12 * k : k)); UI.cgMes = aStr(d).slice(0, 7); guardarUI(); pintar(); };
   $('#cg-ant', c).onclick = () => mover(-1); $('#cg-sig', c).onclick = () => mover(1);
+  $('#cg-filtro', c).onchange = (e) => { UI.cgCat = e.target.value; guardarUI(); pintar(); };
+  $$('[data-cgir]', c).forEach(b => b.onclick = () => { UI.cgMes = b.dataset.cgir; UI.cgVista = 'mes'; guardarUI(); pintar(); });
+  $$('.cg-anio [data-cgfila]', c).forEach(tr => tr.onclick = () => { UI.cgCat = tr.dataset.cgfila; guardarUI(); pintar(); });
   $$('[data-cgv]', c).forEach(b => b.onclick = () => { UI.cgVista = b.dataset.cgv; guardarUI(); pintar(); });
   $$('[data-cgcat]', c).forEach(b => b.onclick = () => { UI.cgCat = UI.cgCat === b.dataset.cgcat ? '' : b.dataset.cgcat; guardarUI(); pintar(); });
   const td = $('#cg-todas', c); if (td) td.onclick = (e) => { e.preventDefault(); UI.cgCat = ''; guardarUI(); pintar(); };
