@@ -30,10 +30,15 @@ const normCasa = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/
 const claveConcepto = (t) => normCasa(t).replace(/\d+/g, ' ').replace(/[^a-z ]/g, ' ').split(' ').filter(w => w.length > 2 && !['compra', 'pago', 'tarjeta', 'tarj', 'tjta', 'operacion', 'num', 'recibo', 'transferencia', 'bizum', 'cargo', 'adeudo', 'com', 'tpv', 'con', 'del', 'los', 'las', 'www'].includes(w)).slice(0, 3).join(' ');
 function adivinarCat(concepto) {
   const c = normCasa(concepto), k = claveConcepto(concepto);
-  const r = (D.reglasCasa || []).find(x => x.clave && (k === x.clave || c.includes(x.clave)));
-  if (r) return r.cat;
+  // Primero las tuyas (las escritas a mano, las más largas antes), luego las aprendidas al corregir, luego las de serie
+  const reglas = (D.reglasCasa || []).slice().sort((a, b) => (b.mano ? 1 : 0) - (a.mano ? 1 : 0) || b.clave.length - a.clave.length);
+  const r = reglas.find(x => x.clave && (k === x.clave || c.includes(x.clave)));
+  const vale = (cat) => catsCasa().includes(cat) ? cat : 'Otros';
+  if (r) return vale(r.cat);
   const p = PISTAS_CASA.find(([, re]) => re.test(c));
-  return p ? p[0] : 'Otros';
+  if (!p) return 'Otros';
+  const ren = (D.listas && D.listas.catCasaRen) || {};
+  return vale(ren[p[0]] || p[0]);
 }
 function recordarCat(concepto, cat) {
   const k = claveConcepto(concepto); if (!k) return;
@@ -286,3 +291,86 @@ function cargarExcel() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   return new Promise((ok, mal) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; s.onload = () => window.XLSX ? ok(window.XLSX) : mal(new Error('sin XLSX')); s.onerror = () => mal(new Error('No se ha podido cargar el lector de Excel: comprueba que tienes internet, o exporta en CSV.')); document.head.appendChild(s); });
 }
+
+// ---------- Ajustes › Gastos de casa: categorías y conceptos ----------
+(function () {
+  const lista = () => D.listas.catCasa || (D.listas.catCasa = CATS_CASA.slice());
+  const cuenta = (cat) => (D.gastosCasa || []).filter(g => g.cat === cat).length;
+  const seccion = () => {
+    const cats = lista();
+    const reglas = (D.reglasCasa || []).slice().sort((a, b) => a.cat.localeCompare(b.cat) || a.clave.localeCompare(b.clave));
+    const opts = (sel) => cats.map(x => `<option${x === sel ? ' selected' : ''}>${esc(x)}</option>`).join('');
+    return `<section class="tarjeta" id="aj-gastos" style="grid-column:1/-1"><h2>💶 Gastos de casa</h2>
+      <div class="ajg">
+        <div><h3>Categorías</h3><p class="suave">Cambia el nombre (se cambia también en los gastos ya apuntados), añade las tuyas o quita las que no uses (sus gastos pasan a «Otros»).</p>
+          <div class="ajg-cats">${cats.map((c, i) => `<div class="ajg-fila"><span class="pill-cc" style="--h:${colorCatC(c)}">&nbsp;</span><input data-cat="${i}" value="${esc(c)}" aria-label="Nombre de la categoría"><small class="tenue">${cuenta(c) || ''}</small>${c === 'Otros' ? '<span></span>' : `<button class="btn-x" data-catdel="${i}" title="Quitar" aria-label="Quitar">×</button>`}</div>`).join('')}</div>
+          <div class="ajg-nueva"><input id="ajg-ncat" placeholder="Nueva categoría (p. ej. Cumpleaños)"><button class="btn peq" id="ajg-addcat">+ Añadir</button></div>
+          <button class="btn peq" id="ajg-def" style="margin-top:8px">Volver a las de serie</button></div>
+        <div><h3>Conceptos</h3><p class="suave">Si el concepto del banco contiene estas palabras, el gasto va a esa categoría. Aquí también salen las que aprendo cuando corriges una.</p>
+          <div class="ajg-nueva"><input id="ajg-npal" placeholder="Palabra del concepto (p. ej. ikastola, gimnasio)"><select id="ajg-ncatr">${opts('')}</select><button class="btn peq" id="ajg-addreg">+ Añadir</button></div>
+          <div class="ajg-reglas">${reglas.length ? reglas.map(r => `<div class="ajg-fila r"><input data-rk="${esc(r.clave)}" value="${esc(r.clave)}" aria-label="Palabra"><span class="tenue">→</span><select data-rc="${esc(r.clave)}">${opts(r.cat)}</select><button class="btn-x" data-rdel="${esc(r.clave)}" title="Quitar" aria-label="Quitar">×</button></div>`).join('') : '<p class="vacio">Aún no hay conceptos tuyos.</p>'}</div>
+          <button class="btn peq" id="ajg-aplicar" style="margin-top:8px">Volver a clasificar los gastos que tengo</button>
+          <p class="nota" style="margin-top:8px">«Volver a clasificar» aplica estas palabras (y las de serie) a todos tus gastos; los que hayas cambiado a mano y no encajen con ninguna se quedan como están.</p></div>
+      </div></section>`;
+  };
+  const repinta = () => { cambio(false); const t = document.getElementById('aj-gastos'); if (t) { t.outerHTML = seccion(); enlazar(document); } };
+  const renombrar = (viejo, nuevo) => {
+    (D.gastosCasa || []).forEach(g => { if (g.cat === viejo) g.cat = nuevo; });
+    (D.reglasCasa || []).forEach(r => { if (r.cat === viejo) r.cat = nuevo; });
+    const ren = D.listas.catCasaRen || (D.listas.catCasaRen = {});
+    Object.keys(ren).forEach(k => { if (ren[k] === viejo) ren[k] = nuevo; });
+    if (CATS_CASA.includes(viejo)) ren[viejo] = nuevo;
+    if (UI.cgCat === viejo) { UI.cgCat = nuevo; guardarUI(); }
+  };
+  function enlazar(r) {
+    const t = r.querySelector('#aj-gastos'); if (!t) return;
+    $$('[data-cat]', t).forEach(inp => inp.onchange = () => {
+      const L = lista(), i = +inp.dataset.cat, viejo = L[i], nuevo = inp.value.trim();
+      if (!nuevo || nuevo === viejo) { inp.value = viejo; return; }
+      if (L.includes(nuevo)) { // juntar dos categorías
+        L.splice(i, 1); renombrar(viejo, nuevo); aviso(`«${viejo}» se ha juntado con «${nuevo}»`);
+      } else { L[i] = nuevo; renombrar(viejo, nuevo); }
+      repinta();
+    });
+    $$('[data-catdel]', t).forEach(b => b.onclick = () => {
+      const L = lista(), i = +b.dataset.catdel, cat = L[i], antes = JSON.stringify({ L, g: D.gastosCasa, r: D.reglasCasa });
+      L.splice(i, 1); if (!L.includes('Otros')) L.push('Otros');
+      (D.gastosCasa || []).forEach(g => { if (g.cat === cat) g.cat = 'Otros'; });
+      D.reglasCasa = (D.reglasCasa || []).filter(x => x.cat !== cat);
+      repinta();
+      aviso(`Categoría «${cat}» quitada`, { t: 'Deshacer', fn: () => { const a = JSON.parse(antes); D.listas.catCasa = a.L; D.gastosCasa = a.g; D.reglasCasa = a.r; repinta(); } });
+    });
+    const addCat = () => { const v = $('#ajg-ncat', t).value.trim(); if (!v) return; const L = lista(); if (L.includes(v)) { aviso('Ya existe'); return; } L.splice(Math.max(0, L.indexOf('Otros')), 0, v); repinta(); };
+    $('#ajg-addcat', t).onclick = addCat; $('#ajg-ncat', t).onkeydown = (e) => { if (e.key === 'Enter') addCat(); };
+    $('#ajg-def', t).onclick = () => {
+      const quedan = [...new Set((D.gastosCasa || []).map(g => g.cat))].filter(c => !CATS_CASA.includes(c));
+      D.listas.catCasa = [...CATS_CASA.filter(c => c !== 'Otros'), ...quedan, 'Otros']; D.listas.catCasaRen = {}; repinta();
+      if (quedan.length) aviso(`He dejado ${plural(quedan.length, 'categoría tuya que tiene gastos', 'categorías tuyas que tienen gastos')}`);
+    };
+    const addReg = () => {
+      const k = normCasa($('#ajg-npal', t).value); if (!k) return;
+      const cat = $('#ajg-ncatr', t).value;
+      D.reglasCasa = (D.reglasCasa || []).filter(x => x.clave !== k); D.reglasCasa.push({ clave: k, cat, mano: true });
+      let n = 0; (D.gastosCasa || []).forEach(g => { if (normCasa(g.concepto).includes(k) && g.cat !== cat) { g.cat = cat; n++; } });
+      repinta(); if (n) aviso(`${plural(n, 'gasto cambiado', 'gastos cambiados')} a ${cat}`);
+    };
+    $('#ajg-addreg', t).onclick = addReg; $('#ajg-npal', t).onkeydown = (e) => { if (e.key === 'Enter') addReg(); };
+    $$('[data-rk]', t).forEach(inp => inp.onchange = () => {
+      const r = D.reglasCasa.find(x => x.clave === inp.dataset.rk), k = normCasa(inp.value);
+      if (!r) return; if (!k) { D.reglasCasa = D.reglasCasa.filter(x => x !== r); } else { r.clave = k; r.mano = true; } repinta();
+    });
+    $$('[data-rc]', t).forEach(sel => sel.onchange = () => { const r = D.reglasCasa.find(x => x.clave === sel.dataset.rc); if (r) { r.cat = sel.value; repinta(); } });
+    $$('[data-rdel]', t).forEach(b => b.onclick = () => { const antes = D.reglasCasa.slice(); D.reglasCasa = D.reglasCasa.filter(x => x.clave !== b.dataset.rdel); repinta(); aviso('Concepto quitado', { t: 'Deshacer', fn: () => { D.reglasCasa = antes; repinta(); } }); });
+    $('#ajg-aplicar', t).onclick = () => {
+      const antes = (D.gastosCasa || []).map(g => g.cat); let n = 0;
+      (D.gastosCasa || []).forEach(g => { const c = adivinarCat(g.concepto); if (c !== 'Otros' && c !== g.cat) { g.cat = c; n++; } else if (!catsCasa().includes(g.cat)) { g.cat = 'Otros'; n++; } });
+      repinta(); aviso(n ? `${plural(n, 'gasto reclasificado', 'gastos reclasificados')}` : 'Todo estaba ya bien clasificado', n ? { t: 'Deshacer', fn: () => { D.gastosCasa.forEach((g, i) => g.cat = antes[i]); repinta(); } } : undefined);
+    };
+  }
+  const orig = VISTAS.ajustes;
+  VISTAS.ajustes = function (cont) {
+    const r = orig.apply(this, arguments);
+    try { const rej = cont.querySelector('.rejilla'); if (rej && !cont.querySelector('#aj-gastos')) { rej.insertAdjacentHTML('beforeend', seccion()); enlazar(cont); } } catch (e) { console.error(e); }
+    return r;
+  };
+})();

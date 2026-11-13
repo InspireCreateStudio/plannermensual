@@ -610,3 +610,13 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .cg-prev-lista { max-height: 300px; overflow-y: auto; border: 1px solid var(--linea); border-radius: 10px; padding: 4px 8px; font-size: 13px; }
 .cg-prev-lista label { display: grid; grid-template-columns: 18px 56px 1fr auto; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--linea); align-items: center; }
 @media (max-width: 760px) { .cifras.cg-cifras { grid-template-columns: 1fr; } .cg-cat { grid-template-columns: 1fr 70px 80px; } .cg-cat small { display: none; } }
+
+.ajg { display: grid; grid-template-columns: 1fr 1.3fr; gap: 24px; } .ajg h3 { margin: 0 0 4px; font-size: 15px; }
+.ajg .suave { font-size: 13px; margin: 0 0 10px; }
+.ajg-cats, .ajg-reglas { display: flex; flex-direction: column; gap: 4px; max-height: 380px; overflow-y: auto; }
+.ajg-fila { display: grid; grid-template-columns: 22px 1fr 30px 28px; gap: 6px; align-items: center; }
+.ajg-fila.r { grid-template-columns: 1fr 14px 1fr 28px; }
+.ajg-fila input, .ajg-fila select { padding: 5px 9px; font-size: 13.5px; }
+.ajg-fila .pill-cc { padding: 0; width: 14px; height: 14px; }
+.ajg-nueva { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; } .ajg-nueva input { flex: 1; min-width: 160px; } .ajg-nueva select { max-width: 200px; }
+@media (max-width: 760px) { .ajg { grid-template-columns: 1fr; } }
