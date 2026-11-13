@@ -164,48 +164,90 @@ function numBanco(v) {
   if (/,\d{1,2}$/.test(t)) t = t.replace(/\./g, '').replace(',', '.'); else t = t.replace(/,/g, '');
   const n = parseFloat(t); return neg ? -Math.abs(n) : n;
 }
+const MESES_BANCO = { ene: 1, jan: 1, urt: 1, feb: 2, ots: 2, mar: 3, mart: 3, abr: 4, apr: 4, api: 4, may: 5, mai: 5, jun: 6, eka: 6, jul: 7, uzt: 7, ago: 8, aug: 8, abu: 8, sep: 9, set: 9, ira: 9, oct: 10, oto: 10, urr: 10, nov: 11, aza: 11, dic: 12, dec: 12, abe: 12 };
 function fechaBanco(v) {
+  if (v instanceof Date && !isNaN(v)) return aStr(v);
   if (typeof v === 'number' && v > 20000 && v < 80000) return aStr(new Date(Math.round((v - 25569) * 864e5)));
-  const t = String(v || '').trim();
-  let m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
-  m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/); if (m) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${pad(+m[2])}-${pad(+m[1])}`;
+  const t = normCasa(v).replace(/^[a-z]+,? (?=\d)/, ''); // «lun, 13/11/2026»
+  const ok = (y, m, d) => (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y > 1990 && y < 2100) ? `${y}-${pad(m)}-${pad(d)}` : '';
+  const y2 = (y) => y.length === 2 ? 2000 + +y : +y;
+  let m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if (m) return ok(+m[1], +m[2], +m[3]);
+  m = t.match(/^(\d{4})(\d{2})(\d{2})\b/); if (m) return ok(+m[1], +m[2], +m[3]);
+  m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4}|\d{2})\b/); if (m) return ok(y2(m[3]), +m[2], +m[1]) || ok(y2(m[3]), +m[1], +m[2]);
+  m = t.match(/^(\d{1,2})[-/. ]+(?:de )?([a-z]{3,})\.?[-/. ]+(?:de )?(\d{4}|\d{2})\b/); if (m && MESES_BANCO[m[2].slice(0, 3)]) return ok(y2(m[3]), MESES_BANCO[m[2].slice(0, 3)], +m[1]);
+  m = t.match(/^([a-z]{3,})\.? (\d{1,2}),? (\d{4})/); if (m && MESES_BANCO[m[1].slice(0, 3)]) return ok(+m[3], MESES_BANCO[m[1].slice(0, 3)], +m[2]);
   return '';
 }
 function analizarBanco(filas) {
   const nc = (t) => normCasa(t);
-  const esCab = (f) => { const h = f.map(nc); return h.some(x => /fecha|date|f\. ?valor|f\. ?operacion/.test(x)) && h.some(x => /importe|amount|cantidad|cargo|debe|abono|haber|movimiento/.test(x)); };
-  const hi = filas.findIndex(esCab);
-  if (hi < 0) throw new Error('No encuentro las columnas de fecha e importe. Exporta los movimientos de tu banco en CSV o Excel (con cabecera).');
-  const h = filas[hi].map(nc), datos = filas.slice(hi + 1);
-  const col = (...res) => { for (const re of res) { const i = h.findIndex(x => re.test(x)); if (i >= 0) return i; } return -1; };
-  const cF = col(/^fecha( de)? operacion|^f\. ?operacion|^fecha$|^date$|^fecha/, /f\. ?valor|valor/);
-  const cC = col(/concepto|descripcion|description|detalle|movimiento|comercio|beneficiario|observaciones|^texto/);
-  const cC2 = col(/mas datos|información adicional|observaciones|referencia/);
-  const cI = col(/^importe|amount|cantidad|^euros|^eur/);
-  const cCargo = col(/cargo|debe|gasto|salida/), cAbono = col(/abono|haber|ingreso|entrada/);
-  if (cF < 0 || (cI < 0 && cCargo < 0)) throw new Error('No encuentro la fecha o el importe en el archivo.');
+  const muestra = (i) => filas.slice(i + 1, i + 41);
+  const cuantasFechas = (i, c) => muestra(i).filter(f => fechaBanco(f[c])).length;
+  const cuantosNum = (i, c) => muestra(i).filter(f => { const n = numBanco(f[c]); return !isNaN(n) && n !== 0 && !fechaBanco(f[c]); }).length;
+  // La cabecera: la primera fila que nombra fecha e importe; si no hay, la fila justo antes de la primera con fecha
+  let hi = filas.findIndex(f => { const h = f.map(nc); return h.some(x => /fecha|date|data|f\. ?valor|f\. ?oper|dia\b/.test(x)) && h.some(x => /importe|amount|cantidad|cargo|debe|abono|haber|movimiento|euros|eur\b|zenbat|kopurua/.test(x)); });
+  if (hi < 0) { const p = filas.findIndex(f => f.some(x => fechaBanco(x)) && f.some(x => { const n = numBanco(x); return !isNaN(n) && n && !fechaBanco(x); })); hi = p > 0 ? p - 1 : -1; if (p === 0) { filas = [filas[0].map(() => ''), ...filas]; hi = 0; } }
+  if (hi < 0) throw new Error('No encuentro la fecha y el importe de los movimientos en este archivo.');
+  const h = filas[hi].map(nc), n = Math.max(...filas.slice(hi, hi + 40).map(f => f.length));
+  const cols = Array.from({ length: n }, (_, i) => i);
+  const porNombre = (re) => cols.filter(i => re.test(h[i] || ''));
+  const mejor = (lista, cuenta) => lista.map(i => [i, cuenta(hi, i)]).filter(x => x[1]).sort((a, b) => b[1] - a[1])[0];
+  // Fecha: la de operación si está; si no, la columna con más fechas
+  const cF = (mejor(porNombre(/oper|^fecha$|^date$|^data$|fecha/), cuantasFechas) || mejor(cols, cuantasFechas) || [])[0];
+  const noSaldo = (i) => !/saldo|balance|disponible|^saldo/.test(h[i] || '');
+  const cI = (mejor(porNombre(/^importe|amount|cantidad|^euros?$|^eur$|importe|movimiento|zenbat|kopurua/).filter(noSaldo), cuantosNum) || [])[0];
+  const cCargo = (mejor(porNombre(/cargo|debe|gasto|salida|debito|reintegro/), cuantosNum) || [])[0];
+  const cAbono = (mejor(porNombre(/abono|haber|ingreso|entrada|credito/), cuantosNum) || [])[0];
+  const cImp = cI ?? (cCargo === undefined && cAbono === undefined ? (mejor(cols.filter(i => i !== cF && noSaldo(i)), cuantosNum) || [])[0] : undefined);
+  const cSigno = porNombre(/^signo|^tipo$|^d\/h$|debe\/haber|^\+\/-/)[0];
+  if (cF === undefined || (cImp === undefined && cCargo === undefined && cAbono === undefined)) {
+    throw new Error(`No sé leer este archivo: no encuentro ${cF === undefined ? 'la fecha' : 'el importe'}. Columnas que veo: ${filas[hi].filter(Boolean).slice(0, 8).join(' · ') || '(sin nombre)'}.`);
+  }
+  const cC = cols.find(i => /concepto|descripcion|description|detalle|comercio|beneficiario|ordenante|establecimiento|^texto|movimiento$|kontzeptua|deskribapena/.test(h[i] || '') && i !== cImp && i !== cF)
+    ?? cols.filter(i => i !== cF && i !== cImp && i !== cCargo && i !== cAbono).map(i => [i, muestra(hi).reduce((s, f) => s + (/[a-z]/i.test(f[i] || '') ? String(f[i]).length : 0), 0)]).sort((a, b) => b[1] - a[1])[0]?.[0];
+  const cC2 = cols.find(i => i !== cC && /mas datos|informacion adicional|observaciones|referencia ampliada|^notas?$/.test(h[i] || ''));
   const mov = [];
-  datos.forEach(f => {
+  filas.slice(hi + 1).forEach(f => {
     const fecha = fechaBanco(f[cF]); if (!fecha) return;
-    let imp = cI >= 0 ? numBanco(f[cI]) : (numBanco(f[cCargo]) ? -Math.abs(numBanco(f[cCargo])) : Math.abs(numBanco(f[cAbono]) || 0));
+    let imp;
+    if (cImp !== undefined) {
+      imp = numBanco(f[cImp]);
+      if (cSigno !== undefined && /^(d|debe|cargo|-)/i.test(String(f[cSigno]).trim())) imp = -Math.abs(imp);
+    } else {
+      const ca = cCargo !== undefined ? numBanco(f[cCargo]) : NaN, ab = cAbono !== undefined ? numBanco(f[cAbono]) : NaN;
+      imp = !isNaN(ca) && ca ? -Math.abs(ca) : (!isNaN(ab) ? Math.abs(ab) : NaN);
+    }
     if (isNaN(imp) || !imp) return;
-    const concepto = [cC >= 0 ? f[cC] : '', cC2 >= 0 && cC2 !== cC ? f[cC2] : ''].map(x => String(x || '').trim()).filter(Boolean).join(' · ').replace(/\s+/g, ' ').slice(0, 140) || 'Movimiento';
+    const concepto = [cC !== undefined ? f[cC] : '', cC2 !== undefined ? f[cC2] : ''].map(x => String(x ?? '').trim()).filter(Boolean).join(' · ').replace(/\s+/g, ' ').slice(0, 140) || 'Movimiento';
     mov.push({ fecha, concepto, imp });
   });
-  if (!mov.length) throw new Error('El archivo no tiene movimientos que pueda leer.');
+  if (!mov.length) {
+    const ej = filas[hi + 1] || [];
+    throw new Error(`No he podido leer los movimientos. Primera fila: ${ej.filter(x => String(x).trim()).slice(0, 6).join(' · ')}. Mándamela y lo ajusto.`);
+  }
   return mov;
 }
 async function importarBanco(f) {
   try {
     let filas;
-    if (/\.xlsx?$/i.test(f.name)) {
+    const cab = new Uint8Array(await f.slice(0, 512).arrayBuffer());
+    const cabTxt = String.fromCharCode(...cab).replace(/\u0000/g, '').trim().toLowerCase();
+    // Hay bancos que llaman .csv a un Excel o a una página web con una tabla
+    const pareceExcel = (cab[0] === 0x50 && cab[1] === 0x4B) || (cab[0] === 0xD0 && cab[1] === 0xCF) || /^<(\?xml|!doctype|html|table)/.test(cabTxt.replace(/^\W*(?=<)/, ''));
+    const esHtml = /<table/i.test(cabTxt) || /^<(!doctype|html)/.test(cabTxt.replace(/^\W*(?=<)/, '')) || /\.html?$/i.test(f.name);
+    if (esHtml) {
+      const doc = new DOMParser().parseFromString(await f.text(), 'text/html');
+      filas = [...doc.querySelectorAll('tr')].map(tr => [...tr.querySelectorAll('td,th')].map(td => td.textContent.trim())).filter(r => r.some(Boolean));
+    } else if (/\.(xlsx?|ods)$/i.test(f.name) || pareceExcel) {
       const X = await cargarExcel();
-      const wb = X.read(new Uint8Array(await f.arrayBuffer()), { type: 'array' });
+      const wb = X.read(new Uint8Array(await f.arrayBuffer()), { type: 'array', cellDates: true });
       filas = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: '' });
     } else {
       const buf = await f.arrayBuffer();
-      let txt = new TextDecoder('utf-8').decode(buf);
-      if (txt.includes('�')) txt = new TextDecoder('windows-1252').decode(buf); // bancos que exportan en Latin-1
+      const by = new Uint8Array(buf.slice(0, 4));
+      const u16 = (by[0] === 0xFF && by[1] === 0xFE) || (by[1] === 0 && by[0] !== 0) ? 'utf-16le' : (by[0] === 0xFE && by[1] === 0xFF) || (by[0] === 0 && by[1] !== 0) ? 'utf-16be' : '';
+      let txt = new TextDecoder(u16 || 'utf-8').decode(buf);
+      if (!u16 && txt.includes('\uFFFD')) txt = new TextDecoder('windows-1252').decode(buf); // bancos que exportan en Latin-1
+      txt = txt.replace(/\u0000/g, '');
       filas = leerCSVBanco(txt);
     }
     const mov = analizarBanco(filas);
