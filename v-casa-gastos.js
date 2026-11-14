@@ -230,6 +230,22 @@ function casaGastos(c) {
       </tbody></table></div>
       <p class="nota">«Al año» es el precio actual × las veces que se cobra. Las que no se cobran desde hace más de mes y medio salen en gris y no cuentan en el total.</p>`;
   };
+  // Selección de varios apuntes (gastos «g:id» e ingresos «i:id») para cambiarlos de golpe
+  const SELC = window.SELC || (window.SELC = new Set());
+  [...SELC].forEach(k => { const [t, id] = [k[0], k.slice(2)]; if (!(t === 'g' ? D.gastosCasa : D.ingresosCasa).some(x => x.id === id)) SELC.delete(k); });
+  const chk = (k) => `<td class="cg-chk"><input type="checkbox" data-sel="${k}"${SELC.has(k) ? ' checked' : ''} aria-label="Seleccionar"></td>`;
+  const chkTodos = (ks) => `<th class="cg-chk"><input type="checkbox" data-selall="${ks.join(',')}"${ks.length && ks.every(k => SELC.has(k)) ? ' checked' : ''} title="Seleccionar todos" aria-label="Seleccionar todos"></th>`;
+  const barraSel = () => {
+    if (!SELC.size) return '';
+    const nG = [...SELC].filter(k => k[0] === 'g').length, nI = SELC.size - nG;
+    const tG = [...SELC].filter(k => k[0] === 'g').reduce((s, k) => s + (+(D.gastosCasa.find(x => x.id === k.slice(2)) || {}).importe || 0), 0);
+    const tI = [...SELC].filter(k => k[0] === 'i').reduce((s, k) => s + (+(D.ingresosCasa.find(x => x.id === k.slice(2)) || {}).importe || 0), 0);
+    return `<div class="cg-selbar"><b>${[nG ? plural(nG, 'gasto', 'gastos') : '', nI ? plural(nI, 'ingreso', 'ingresos') : ''].filter(Boolean).join(' y ')} ${SELC.size === 1 ? 'elegido' : 'elegidos'}</b>${nG ? ' ' + eurG(tG) : ''}${nI ? ' ' + eurI(tI) : ''}
+      <span class="hueco"></span>
+      ${nG ? '<button class="btn" data-selacc="ing">➕ Pasar a ingresos</button>' : ''}
+      <select id="cg-selcat"><option value="">${nI && !nG ? 'Pasar a gastos de…' : 'Cambiar categoría a…'}</option>${catsCasa().map(x => `<option>${esc(x)}</option>`).join('')}</select>
+      <button class="btn" data-selacc="del">🗑 Borrar</button><button class="btn peq" data-selacc="nada">Quitar selección</button></div>`;
+  };
   // Buscar un concepto en todos los gastos (de cualquier fecha) y pasarlos a una categoría
   const busca = normCasa(UI.cgBuscar || '');
   const encontrados = busca ? D.gastosCasa.filter(g => normCasa(g.concepto + ' ' + (g.notas || '')).includes(busca)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')) : [];
@@ -246,9 +262,10 @@ function casaGastos(c) {
         <label class="cg-recordar"><input type="checkbox" id="cg-precord" checked> y también los que lleguen</label>
         <button class="btn prim" id="cg-paplicar">Pasar</button></div>
       ${regla ? `<p class="nota">Ya tienes guardado que «${esc(regla.clave)}» va a ${esc(regla.cat)}.</p>` : ''}
-      <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>
-      ${todos.map(({ g, ing }) => ing ? `<tr data-ing="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td><span class="pill-cc cg-pill-ing">➕ Ingreso</span></td><td class="num">${eurI(g.importe)}</td></tr>`
-        : `<tr data-id="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurG(g.importe)}</td></tr>`).join('')}
+      ${barraSel()}
+      <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr>${chkTodos(todos.map(({ g, ing }) => (ing ? 'i:' : 'g:') + g.id))}<th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>
+      ${todos.map(({ g, ing }) => ing ? `<tr data-ing="${g.id}">${chk('i:' + g.id)}<td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td><span class="pill-cc cg-pill-ing">➕ Ingreso</span></td><td class="num">${eurI(g.importe)}</td></tr>`
+        : `<tr data-id="${g.id}">${chk('g:' + g.id)}<td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurG(g.importe)}</td></tr>`).join('')}
       </tbody></table></div>`;
   };
   // Vista del mes
@@ -270,20 +287,21 @@ function casaGastos(c) {
       const previsto = (g.fecha || '') > hoy();
       const catCelda = g.partes ? `<span class="cg-partes" title="Repartido">${g.partes.map(t => pill(`${t.cat} ${n0C(t.importe)}`)).join(' ')}</span>`
         : `<select class="cg-sel" data-cgset="${g.id}" style="--h:${colorCatC(g.cat)}">${catsCasa().map(x => `<option${x === g.cat ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
-      return `<tr data-id="${g.id}" class="${previsto ? 'previsto' : ''}"><td>${fechaC(g.fecha)}</td><td><b>${esc(g.concepto)}</b>${g.fijo ? ' <span class="pill-cc gris" title="Gasto fijo: se apunta solo">🔁</span>' : g.periodicidad && g.periodicidad !== 'Puntual' ? ` <span class="pill-cc gris">${esc(g.periodicidad)}</span>` : ''}${previsto ? ' <span class="pill-cc gris">previsto</span>' : ''}${g.notas ? `<small class="bloque">${esc(g.notas)}</small>` : ''}</td>
+      return `<tr data-id="${g.id}" class="${previsto ? 'previsto' : ''}${SELC.has('g:' + g.id) ? ' sel' : ''}">${chk('g:' + g.id)}<td>${fechaC(g.fecha)}</td><td><b>${esc(g.concepto)}</b>${g.fijo ? ' <span class="pill-cc gris" title="Gasto fijo: se apunta solo">🔁</span>' : g.periodicidad && g.periodicidad !== 'Puntual' ? ` <span class="pill-cc gris">${esc(g.periodicidad)}</span>` : ''}${previsto ? ' <span class="pill-cc gris">previsto</span>' : ''}${g.notas ? `<small class="bloque">${esc(g.notas)}</small>` : ''}</td>
         <td>${catCelda}</td><td class="num"><b>${eurG(filtro && g.partes ? deCat(g, filtro) : g.importe)}</b>${filtro && g.partes ? `<small class="bloque tenue">de ${eurG(g.importe)}</small>` : ''}</td>
         <td><button class="btn-x" data-cgdel="${g.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`;
     };
     return `${cifras}
     ${cats.length ? `<div class="cg-cats">${cats.map(barra).join('')}</div>` : ''}
     ${filtro ? `<p class="nota">Solo ${esc(filtro)} · <a href="#" id="cg-todas">ver todas</a></p>` : ''}
-    ${filas.length ? `<div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th><th></th></tr></thead><tbody>
+    ${barraSel()}
+    ${filas.length ? `<div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr>${chkTodos(filas.map(g => 'g:' + g.id))}<th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th><th></th></tr></thead><tbody>
       ${filas.map(filaGasto).join('')}
-      </tbody><tfoot><tr><td></td><td><b>Total${filtro ? ' ' + esc(filtro) : ''}</b></td><td></td><td class="num"><b>${eurG(sumaCat(filas, filtro))}</b></td><td></td></tr></tfoot></table></div>`
+      </tbody><tfoot><tr><td></td><td></td><td><b>Total${filtro ? ' ' + esc(filtro) : ''}</b></td><td></td><td class="num"><b>${eurG(sumaCat(filas, filtro))}</b></td><td></td></tr></tfoot></table></div>`
       : `<div class="vacio"><p>No hay gastos de casa en ${nombreM(mes)}.</p><p class="tenue">Apúntalos con <b>+ Gasto</b> o sube el archivo de movimientos de tu banco: la app separa los gastos, los clasifica (supermercado, suscripciones, colegio…) y aprende de lo que corrijas.</p></div>`}
-    ${ingMes.length ? `<h3 class="cg-h3">Ingresos de ${MESES[+mes.slice(5) - 1]}</h3><div class="tabla-wrap"><table class="tabla cg-tabla cg-ingt"><tbody>
-      ${ingMes.map(g => `<tr data-ing="${g.id}"><td>${fechaC(g.fecha)}</td><td>${esc(g.concepto)}</td><td class="num"><b>${eurI(g.importe)}</b></td><td><button class="btn-x" data-ingdel="${g.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`).join('')}
-      </tbody><tfoot><tr><td></td><td><b>Total ingresos</b></td><td class="num"><b>${eurI(ingT)}</b></td><td></td></tr></tfoot></table></div>` : ''}`;
+    ${ingMes.length ? `<h3 class="cg-h3">Ingresos de ${MESES[+mes.slice(5) - 1]}</h3><div class="tabla-wrap"><table class="tabla cg-tabla cg-ingt"><thead><tr>${chkTodos(ingMes.map(g => 'i:' + g.id))}<th>Fecha</th><th>Concepto</th><th class="num">Importe</th><th></th></tr></thead><tbody>
+      ${ingMes.map(g => `<tr data-ing="${g.id}" class="${SELC.has('i:' + g.id) ? 'sel' : ''}">${chk('i:' + g.id)}<td>${fechaC(g.fecha)}</td><td>${esc(g.concepto)}</td><td class="num"><b>${eurI(g.importe)}</b></td><td><button class="btn-x" data-ingdel="${g.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`).join('')}
+      </tbody><tfoot><tr><td></td><td></td><td><b>Total ingresos</b></td><td class="num"><b>${eurI(ingT)}</b></td><td></td></tr></tfoot></table></div>` : ''}`;
   };
 
   c.innerHTML = `<div class="cg-cab">
@@ -320,7 +338,23 @@ function casaGastos(c) {
   const fl = $('#cg-filtro', c); if (fl) fl.onchange = (e) => { UI.cgCat = e.target.value; guardarUI(); pintar(); };
   $$('[data-cgir]', c).forEach(b => b.onclick = () => { UI.cgMes = b.dataset.cgir; UI.cgVista = 'mes'; guardarUI(); pintar(); });
   $$('.cg-anio [data-cgfila]', c).forEach(tr => tr.onclick = () => { UI.cgCat = tr.dataset.cgfila; guardarUI(); pintar(); });
-  $$('[data-cgv]', c).forEach(b => b.onclick = () => { UI.cgVista = b.dataset.cgv; UI.cgBuscar = ''; guardarUI(); pintar(); });
+  $$('[data-sel]', c).forEach(x => x.onchange = () => { if (x.checked) SELC.add(x.dataset.sel); else SELC.delete(x.dataset.sel); pintar(); });
+  $$('[data-selall]', c).forEach(x => x.onchange = () => { x.dataset.selall.split(',').filter(Boolean).forEach(k => x.checked ? SELC.add(k) : SELC.delete(k)); pintar(); });
+  const hacerSel = (fn, texto) => {
+    const copia = JSON.stringify({ g: D.gastosCasa, i: D.ingresosCasa || [] }), ks = [...SELC];
+    const gs = ks.filter(k => k[0] === 'g').map(k => D.gastosCasa.find(x => x.id === k.slice(2))).filter(Boolean);
+    const is = ks.filter(k => k[0] === 'i').map(k => D.ingresosCasa.find(x => x.id === k.slice(2))).filter(Boolean);
+    fn(gs, is); SELC.clear(); cambio();
+    aviso(texto, { t: 'Deshacer', fn: () => { const a = JSON.parse(copia); D.gastosCasa = a.g; D.ingresosCasa = a.i; ks.forEach(k => SELC.add(k)); cambio(); } });
+  };
+  $$('[data-selacc]', c).forEach(b => b.onclick = () => {
+    const a = b.dataset.selacc;
+    if (a === 'nada') { SELC.clear(); pintar(); return; }
+    if (a === 'ing') hacerSel((gs) => gs.forEach(g => gastoAIngreso(g)), `${plural([...SELC].filter(k => k[0] === 'g').length, 'gasto pasado', 'gastos pasados')} a ingresos`);
+    if (a === 'del') hacerSel((gs, is) => { const sg = new Set(gs.map(x => x.id)), si = new Set(is.map(x => x.id)); D.gastosCasa = D.gastosCasa.filter(x => !sg.has(x.id)); D.ingresosCasa = (D.ingresosCasa || []).filter(x => !si.has(x.id)); }, `${plural(SELC.size, 'apunte borrado', 'apuntes borrados')}`);
+  });
+  const sc = $('#cg-selcat', c); if (sc) sc.onchange = () => { const cat = sc.value; if (!cat) return; hacerSel((gs, is) => { gs.forEach(g => { g.cat = cat; delete g.partes; }); is.forEach(i => ingresoAGasto(i, cat)); }, `${plural(SELC.size, 'apunte pasado', 'apuntes pasados')} a ${cat}`); };
+  $$('[data-cgv]', c).forEach(b => b.onclick = () => { SELC.clear(); UI.cgVista = b.dataset.cgv; UI.cgBuscar = ''; guardarUI(); pintar(); });
   $$('[data-cgcat]', c).forEach(b => b.onclick = () => { UI.cgCat = UI.cgCat === b.dataset.cgcat ? '' : b.dataset.cgcat; guardarUI(); pintar(); });
   $$('[data-cgver]', c).forEach(b => b.onclick = () => { UI.cgBuscar = b.dataset.cgver; pintar(); });
   const td = $('#cg-todas', c); if (td) td.onclick = (e) => { e.preventDefault(); UI.cgCat = ''; guardarUI(); pintar(); };
@@ -341,8 +375,8 @@ function casaGastos(c) {
   });
   $$('[data-cgdel]', c).forEach(b => b.onclick = () => { const antes = D.gastosCasa.slice(); D.gastosCasa = D.gastosCasa.filter(x => x.id !== b.dataset.cgdel); cambio(); aviso('Gasto borrado', { t: 'Deshacer', fn: () => { D.gastosCasa = antes; cambio(); } }); });
   $$('[data-ingdel]', c).forEach(b => b.onclick = () => { const antes = D.ingresosCasa.slice(); D.ingresosCasa = D.ingresosCasa.filter(x => x.id !== b.dataset.ingdel); cambio(); aviso('Ingreso borrado', { t: 'Deshacer', fn: () => { D.ingresosCasa = antes; cambio(); } }); });
-  $$('.cg-tabla tbody tr[data-id]', c).forEach(tr => tr.onclick = (e) => { if (e.target.closest('select,button,a')) return; const g = D.gastosCasa.find(x => x.id === tr.dataset.id); if (g) editarGastoCasa(g, false); });
-  $$('tr[data-ing]', c).forEach(tr => tr.onclick = (e) => { if (e.target.closest('button')) return; const g = D.ingresosCasa.find(x => x.id === tr.dataset.ing); if (g) editarIngresoCasa(g, false); });
+  $$('.cg-tabla tbody tr[data-id]', c).forEach(tr => tr.onclick = (e) => { if (e.target.closest('select,button,a,input,.cg-chk')) return; const g = D.gastosCasa.find(x => x.id === tr.dataset.id); if (g) editarGastoCasa(g, false); });
+  $$('tr[data-ing]', c).forEach(tr => tr.onclick = (e) => { if (e.target.closest('button,input,.cg-chk')) return; const g = D.ingresosCasa.find(x => x.id === tr.dataset.ing); if (g) editarIngresoCasa(g, false); });
 }
 
 function editarGastoCasa(g, nuevo) {

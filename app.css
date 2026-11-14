@@ -659,3 +659,9 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .cg-rojo { color: #c0453a; } .cg-verde { color: #2f8a57; } .cg-rojo.pasado { font-weight: 700; background: #fbe9e6; }
 .cifras .cg-menos, .cifras .cg-mas { font: inherit; color: inherit; } .cifras b .cg-menos { color: #c0453a; } .cifras b .cg-mas { color: #2f8a57; }
 .cg-pill-ing { background: #e3f3e8; color: #2f7a4d; }
+.cg-chk { width: 30px; padding-right: 0 !important; } .cg-chk input { width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--acento); }
+.cg-tabla tbody tr.sel td { background: #fdf3e6; }
+.cg-selbar { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--tinta); color: #fff; border-radius: var(--radio); padding: 8px 12px; margin-bottom: 8px; font-size: 13.5px; }
+.cg-selbar .btn { background: #fff2; color: #fff; border-color: #fff4; } .cg-selbar .btn:hover { background: #fff3; }
+.cg-selbar select { max-width: 210px; padding: 5px 9px; border-radius: 999px; } .cg-selbar .cg-menos { color: #ffb3a8; } .cg-selbar .cg-mas { color: #9be0b4; }
+.cg-selbar select { color: #2b2420; background: #fff; }
