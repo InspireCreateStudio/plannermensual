@@ -105,7 +105,7 @@ function generarFijos() {
     f.hechos = f.hechos || [];
     let m = f.desde || tope, vueltas = 0;
     while (m <= tope && vueltas++ < 240) {
-      if ((!f.hasta || m <= f.hasta) && venceEn(f, m) && !f.hechos.includes(m)) {
+      if ((!f.hasta || m <= f.hasta) && venceEn(f, m) && !f.hechos.includes(m) && !D.gastosCasa.some(g => g.fijo === f.id && (g.fecha || '').startsWith(m))) {
         D.gastosCasa.push({ id: uid(), fecha: `${m}-${pad(Math.min(+f.dia || 1, diasDelMes(m)))}`, concepto: f.concepto, importe: +f.importe || 0, cat: f.cat || adivinarCat(f.concepto), periodicidad: f.cada || 'Mensual', origen: 'fijo', fijo: f.id });
         f.hechos.push(m); n++;
       }
