@@ -17,6 +17,7 @@
     { k: 'kit', i: '📚', n: 'Kit Escritoras', url: BASE + 'kitescritoras/' },
     { k: 'novelia', i: '✍️', n: 'Novelia', url: BASE + 'novelia-studio/' },
     { k: 'centro', i: '📊', n: 'Centro de Control', url: BASE + 'centrodecontrol/' },
+    { k: 'lecturas', i: '📖', n: 'Mis Lecturas', url: 'https://appstoinspireandcreate.pages.dev/lecturas/' },
   ];
   const CLAVE = 'ics-apps';
   function leer() {
