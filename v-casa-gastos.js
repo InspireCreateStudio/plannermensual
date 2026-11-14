@@ -61,6 +61,9 @@ const sumaG = (gs) => gs.reduce((s, g) => s + (+g.importe || 0), 0);
 const sumaCat = (gs, cat) => cat ? gs.reduce((s, g) => s + deCat(g, cat), 0) : sumaG(gs);
 const sumaPorCat = (gs) => { const o = {}; gs.forEach(g => trozos(g).forEach(t => { const k = t.cat || 'Otros'; o[k] = (o[k] || 0) + (+t.importe || 0); })); return o; };
 const sumaMes = (m, k) => { const d = new Date(+m.slice(0, 4), +m.slice(5) - 1 + k, 1); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; };
+const eurG = (v) => `<span class="cg-menos">−${eurC(Math.abs(+v || 0))}</span>`; // gasto: rojo y con −
+const eurI = (v) => `<span class="cg-mas">+${eurC(Math.abs(+v || 0))}</span>`; // ingreso: verde y con +
+const eurS = (v) => (+v || 0) < 0 ? eurG(v) : eurI(v);
 const n0C = (x) => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(x);
 const catSubs = () => { const ren = (D.listas && D.listas.catCasaRen) || {}; return ren['Suscripciones'] || 'Suscripciones'; };
 
@@ -140,10 +143,10 @@ function casaGastos(c) {
     const n0 = (x) => x ? n0C(x) : '<span class="tenue">·</span>';
     const totAnio = sumaG(delAnio), totIng = sumaG(ingAnio);
     return !delAnio.length ? `<p class="vacio">Aún no hay gastos de casa en ${Y}.</p>` : `<div class="tabla-wrap"><table class="tabla cg-anio"><thead><tr><th>Categoría</th>${meses.map(m => `<th class="num">${MESES_C[+m.slice(5) - 1]}</th>`).join('')}<th class="num">Total</th><th class="num">Al mes</th>${Object.keys(P).length ? '<th class="num">Presup.</th>' : ''}</tr></thead>
-      <tbody>${cs.map(cat => { const t = totC[cat], pm = +P[cat] || 0; return `<tr data-cgfila="${esc(cat)}" title="Ver todo lo de ${esc(cat)}"><td>${pill(cat)}</td>${meses.map(m => { const x = v(cat, m); return `<td class="num${pm && x > pm ? ' rojo' : ''}">${n0(x)}</td>`; }).join('')}<td class="num"><b>${eurC(t)}</b></td><td class="num">${eurC(t / mesesConGasto)}</td>${Object.keys(P).length ? `<td class="num tenue">${pm ? n0C(pm) : ''}</td>` : ''}</tr>`; }).join('')}</tbody>
-      <tfoot><tr><td><b>Gastos</b></td>${meses.map(m => `<td class="num"><b>${n0(tm(m))}</b></td>`).join('')}<td class="num"><b>${eurC(totAnio)}</b></td><td class="num">${eurC(totAnio / mesesConGasto)}</td>${Object.keys(P).length ? '<td></td>' : ''}</tr>
-      ${ingAnio.length ? `<tr class="cg-ing"><td><b>Ingresos</b></td>${meses.map(m => `<td class="num">${n0(im(m))}</td>`).join('')}<td class="num"><b>${eurC(totIng)}</b></td><td class="num">${eurC(totIng / mesesConGasto)}</td>${Object.keys(P).length ? '<td></td>' : ''}</tr>
-      <tr class="cg-aho"><td><b>Ahorro</b></td>${meses.map(m => { const a = im(m) - tm(m); return `<td class="num ${a < 0 ? 'rojo' : 'verde-t'}">${im(m) || tm(m) ? n0C(a) : '<span class="tenue">·</span>'}</td>`; }).join('')}<td class="num ${totIng - totAnio < 0 ? 'rojo' : 'verde-t'}"><b>${eurC(totIng - totAnio)}</b></td><td class="num">${eurC((totIng - totAnio) / mesesConGasto)}</td>${Object.keys(P).length ? '<td></td>' : ''}</tr>` : ''}</tfoot></table></div>
+      <tbody>${cs.map(cat => { const t = totC[cat], pm = +P[cat] || 0; return `<tr data-cgfila="${esc(cat)}" title="Ver todo lo de ${esc(cat)}"><td>${pill(cat)}</td>${meses.map(m => { const x = v(cat, m); return `<td class="num cg-rojo${pm && x > pm ? ' pasado' : ''}">${x ? '−' + n0C(x) : n0(0)}</td>`; }).join('')}<td class="num"><b>${eurG(t)}</b></td><td class="num">${eurG(t / mesesConGasto)}</td>${Object.keys(P).length ? `<td class="num tenue">${pm ? n0C(pm) : ''}</td>` : ''}</tr>`; }).join('')}</tbody>
+      <tfoot><tr><td><b>Gastos</b></td>${meses.map(m => `<td class="num cg-rojo"><b>${tm(m) ? '−' + n0C(tm(m)) : n0(0)}</b></td>`).join('')}<td class="num"><b>${eurG(totAnio)}</b></td><td class="num">${eurG(totAnio / mesesConGasto)}</td>${Object.keys(P).length ? '<td></td>' : ''}</tr>
+      ${ingAnio.length ? `<tr class="cg-ing"><td><b>Ingresos</b></td>${meses.map(m => `<td class="num cg-verde">${im(m) ? '+' + n0C(im(m)) : n0(0)}</td>`).join('')}<td class="num"><b>${eurI(totIng)}</b></td><td class="num">${eurI(totIng / mesesConGasto)}</td>${Object.keys(P).length ? '<td></td>' : ''}</tr>
+      <tr class="cg-aho"><td><b>Ahorro</b></td>${meses.map(m => { const a = im(m) - tm(m); return `<td class="num ${a < 0 ? 'cg-rojo' : 'cg-verde'}">${im(m) || tm(m) ? (a < 0 ? '−' : '+') + n0C(Math.abs(a)) : '<span class="tenue">·</span>'}</td>`; }).join('')}<td class="num"><b>${eurS(totIng - totAnio)}</b></td><td class="num">${eurS((totIng - totAnio) / mesesConGasto)}</td>${Object.keys(P).length ? '<td></td>' : ''}</tr>` : ''}</tfoot></table></div>
       <p class="nota">En euros. «Al mes» es la media de los meses en los que hay gastos apuntados (${mesesConGasto}). Pulsa una categoría para ver todo lo suyo.</p>`;
   };
   const anioCat = () => {
@@ -155,15 +158,15 @@ function casaGastos(c) {
     const totalAnio = sumaG(delAnio);
     const porConc = {}; xs.forEach(g => { const k = claveConcepto(g.concepto) || normCasa(g.concepto); (porConc[k] = porConc[k] || { n: 0, t: 0, nom: g.concepto }).n++; porConc[k].t += deCat(g, filtro); });
     const conc = Object.values(porConc).sort((a, b) => b.t - a.t);
-    return `<div class="cifras cg-cifras"><div><span>${esc(filtro)} en ${Y}</span><b>${eurC(tot)}</b><small>${Math.round(tot / (totalAnio || 1) * 100)} % de todo lo gastado</small></div>
-        <div><span>Media al mes</span><b>${eurC(tot / conG)}</b><small>${pm ? `presupuesto ${eurC(pm)} · ${tm.filter(x => x > pm).length ? plural(tm.filter(x => x > pm).length, 'mes pasado', 'meses pasados') : 'nunca te has pasado'}` : plural(conG, 'mes con gastos', 'meses con gastos')}</small></div>
-        <div><span>Apuntes</span><b>${xs.length}</b><small>el mayor, ${eurC(Math.max(...xs.map(g => deCat(g, filtro))))}</small></div></div>
+    return `<div class="cifras cg-cifras"><div><span>${esc(filtro)} en ${Y}</span><b>${eurG(tot)}</b><small>${Math.round(tot / (totalAnio || 1) * 100)} % de todo lo gastado</small></div>
+        <div><span>Media al mes</span><b>${eurG(tot / conG)}</b><small>${pm ? `presupuesto ${eurC(pm)} · ${tm.filter(x => x > pm).length ? plural(tm.filter(x => x > pm).length, 'mes pasado', 'meses pasados') : 'nunca te has pasado'}` : plural(conG, 'mes con gastos', 'meses con gastos')}</small></div>
+        <div><span>Apuntes</span><b>${xs.length}</b><small>el mayor, ${eurG(Math.max(...xs.map(g => deCat(g, filtro))))}</small></div></div>
       <div class="cg-meses">${pm ? `<em class="cg-linea" style="--p:${Math.round(pm / max * 100)}%" title="Presupuesto ${eurC(pm)}"></em>` : ''}${meses.map((m, i) => `<button class="cg-mesbar${tm[i] ? '' : ' cero'}${pm && tm[i] > pm ? ' pasado' : ''}" data-cgir="${m}" title="Ver ${MESES[i]}"><i style="--alto:${Math.round(tm[i] / max * 100)}%;--h:${colorCatC(filtro)}"></i><b>${tm[i] ? n0C(tm[i]) : ''}</b><span>${MESES_C[i]}</span></button>`).join('')}</div>
-      ${conc.length > 1 ? `<h3 class="cg-h3">Por concepto</h3><div class="cg-conc">${conc.slice(0, 12).map(c => `<div><span>${esc(c.nom)}</span><small class="tenue">${c.n} ×</small><b>${eurC(c.t)}</b></div>`).join('')}</div>` : ''}
+      ${conc.length > 1 ? `<h3 class="cg-h3">Por concepto</h3><div class="cg-conc">${conc.slice(0, 12).map(c => `<div><span>${esc(c.nom)}</span><small class="tenue">${c.n} ×</small><b>${eurG(c.t)}</b></div>`).join('')}</div>` : ''}
       <h3 class="cg-h3">Todos los gastos de ${esc(filtro)} en ${Y}</h3>
       <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Importe</th></tr></thead><tbody>
-      ${meses.map((m, i) => { const ms = xs.filter(g => g.fecha.startsWith(m)); return ms.length ? `<tr class="cg-sub"><td colspan="2">${MESES[i]}</td><td class="num">${eurC(tm[i])}</td></tr>` + ms.map(g => `<tr data-id="${g.id}"><td>${fechaC(g.fecha)}</td><td>${esc(g.concepto)}${g.partes ? ` <small class="tenue">(parte de ${eurC(g.importe)})</small>` : ''}${g.notas ? `<small class="bloque">${esc(g.notas)}</small>` : ''}</td><td class="num">${eurC(deCat(g, filtro))}</td></tr>`).join('') : ''; }).join('')}
-      </tbody><tfoot><tr><td></td><td><b>Total ${Y}</b></td><td class="num"><b>${eurC(tot)}</b></td></tr></tfoot></table></div>`;
+      ${meses.map((m, i) => { const ms = xs.filter(g => g.fecha.startsWith(m)); return ms.length ? `<tr class="cg-sub"><td colspan="2">${MESES[i]}</td><td class="num">${eurG(tm[i])}</td></tr>` + ms.map(g => `<tr data-id="${g.id}"><td>${fechaC(g.fecha)}</td><td>${esc(g.concepto)}${g.partes ? ` <small class="tenue">(parte de ${eurG(g.importe)})</small>` : ''}${g.notas ? `<small class="bloque">${esc(g.notas)}</small>` : ''}</td><td class="num">${eurG(deCat(g, filtro))}</td></tr>`).join('') : ''; }).join('')}
+      </tbody><tfoot><tr><td></td><td><b>Total ${Y}</b></td><td class="num"><b>${eurG(tot)}</b></td></tr></tfoot></table></div>`;
   };
   // Suscripciones: lo que pagas cada mes o cada año
   const suscripciones = () => {
@@ -192,13 +195,13 @@ function casaGastos(c) {
     const activas = filasS.filter(s => !s.parada && s.cada !== 'Una vez');
     const totMes = activas.reduce((s, x) => s + x.alMes, 0);
     if (!filasS.length) return `<div class="vacio"><p>No hay gastos en «${esc(sc)}».</p><p class="tenue">Cuando subas los movimientos del banco, Netflix, Spotify, iCloud, el gimnasio… irán aquí solos. Si alguna no cae, búscala con 🔍 y pásala a ${esc(sc)}.</p></div>`;
-    return `<div class="cifras cg-cifras"><div><span>Tus suscripciones te cuestan</span><b>${eurC(totMes)}</b><small>al mes</small></div>
-        <div><span>Al año</span><b>${eurC(totMes * 12)}</b><small>${plural(activas.length, 'suscripción activa', 'suscripciones activas')}</small></div>
+    return `<div class="cifras cg-cifras"><div><span>Tus suscripciones te cuestan</span><b>${eurG(totMes)}</b><small>al mes</small></div>
+        <div><span>Al año</span><b>${eurG(totMes * 12)}</b><small>${plural(activas.length, 'suscripción activa', 'suscripciones activas')}</small></div>
         <div><span>Han subido de precio</span><b>${filasS.filter(s => s.cambioP && s.cambioP.a > s.cambioP.de).length}</b><small>${filasS.filter(s => s.parada).length ? plural(filasS.filter(s => s.parada).length, 'parece dada de baja', 'parecen dadas de baja') : 'en el último año'}</small></div></div>
       <div class="tabla-wrap"><table class="tabla cg-subs"><thead><tr><th>Suscripción</th><th>Cada</th><th>Último cobro</th><th class="num">Precio</th><th class="num">Al año</th><th>Precio antes</th><th></th></tr></thead><tbody>
       ${filasS.map(s => `<tr class="${s.parada ? 'parada' : ''}"><td><b>${esc(s.nom)}</b>${s.parada ? ' <span class="pill-cc gris">sin cobros desde hace ' + plural(Math.round((aFecha(hoy()) - aFecha(s.ult.fecha)) / 864e5 / 30), 'mes', 'meses') + '</span>' : ''}${s.fijo ? ' <span class="pill-cc gris">🔁 fijo</span>' : ''}</td>
         <td>${esc(s.cada === 'Mensual' ? 'Mes' : s.cada === 'Trimestral' ? 'Trimestre' : s.cada === 'Anual' ? 'Año' : 'Una vez')}</td><td>${s.ult ? fechaC(s.ult.fecha, true) : '<span class="tenue">aún no</span>'}</td>
-        <td class="num"><b>${eurC(s.imp)}</b></td><td class="num">${eurC(s.alAnio)}</td>
+        <td class="num"><b>${eurG(s.imp)}</b></td><td class="num">${eurG(s.alAnio)}</td>
         <td>${s.cambioP ? `<span class="${s.cambioP.a > s.cambioP.de ? 'rojo' : 'verde-t'}">${s.cambioP.a > s.cambioP.de ? '▲ subió' : '▼ bajó'} de ${eurC(s.cambioP.de)} (${MESES_C[+s.cambioP.cuando.slice(5, 7) - 1]} ${s.cambioP.cuando.slice(2, 4)})</span>` : '<span class="tenue">igual</span>'}</td>
         <td><button class="btn peq" data-cgver="${esc(s.k)}">Ver</button></td></tr>`).join('')}
       </tbody></table></div>
@@ -212,37 +215,37 @@ function casaGastos(c) {
     const cuentaCat = {}; encontrados.forEach(g => { cuentaCat[g.cat || 'Otros'] = (cuentaCat[g.cat || 'Otros'] || 0) + 1; });
     const masUsada = Object.entries(cuentaCat).sort((a, b) => b[1] - a[1])[0][0];
     const regla = (D.reglasCasa || []).find(r => r.clave === busca);
-    return `<div class="cg-pasar"><b>${plural(encontrados.length, 'gasto', 'gastos')} con «${esc(UI.cgBuscar)}»</b> · ${eurC(sumaG(encontrados))}
+    return `<div class="cg-pasar"><b>${plural(encontrados.length, 'gasto', 'gastos')} con «${esc(UI.cgBuscar)}»</b> · ${eurG(sumaG(encontrados))}
         <span class="hueco"></span><span>Pasarlos todos a</span>
         <select id="cg-pcat">${catsCasa().map(x => `<option${x === (regla ? regla.cat : masUsada) ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
         <label class="cg-recordar"><input type="checkbox" id="cg-precord" checked> y también los que lleguen</label>
         <button class="btn prim" id="cg-paplicar">Pasar</button></div>
       ${regla ? `<p class="nota">Ya tienes guardado que «${esc(regla.clave)}» va a ${esc(regla.cat)}.</p>` : ''}
       <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>
-      ${encontrados.map(g => `<tr data-id="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurC(g.importe)}</td></tr>`).join('')}
+      ${encontrados.map(g => `<tr data-id="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurG(g.importe)}</td></tr>`).join('')}
       </tbody></table></div>`;
   };
   // Vista del mes
   const vistaMes = () => {
     const ingT = sumaG(ingMes);
     const cifras = hayIngresos
-      ? `<div class="cifras cg-cifras cuatro"><div><span>Entró en ${MESES[+mes.slice(5) - 1]}</span><b>${eurC(ingT)}</b><small>${plural(ingMes.length, 'ingreso', 'ingresos')}</small></div>
-        <div><span>Gastado</span><b>${eurC(total)}</b>${totalAnt ? `<small class="${total > totalAnt ? 'rojo' : 'verde-t'}">${total > totalAnt ? '▲' : '▼'} ${eurC(Math.abs(total - totalAnt))} que el mes anterior</small>` : ''}</div>
-        <div><span>Ahorrado</span><b class="${ingT - total < 0 ? 'rojo' : 'verde-t'}">${eurC(ingT - total)}</b><small>${ingT ? Math.round((ingT - total) / ingT * 100) + ' % de lo que entró' : 'sin ingresos apuntados'}</small></div>
-        <div><span>Lo que más</span><b>${cats[0] && cats[0][1] ? esc(cats[0][0]) : '—'}</b>${cats[0] && cats[0][1] ? `<small>${eurC(cats[0][1])}</small>` : ''}</div></div>`
-      : `<div class="cifras cg-cifras"><div><span>Gastado en ${MESES[+mes.slice(5) - 1]}</span><b>${eurC(total)}</b>${totalAnt ? `<small class="${total > totalAnt ? 'rojo' : 'verde-t'}">${total > totalAnt ? '▲' : '▼'} ${eurC(Math.abs(total - totalAnt))} que el mes anterior</small>` : ''}</div>
-        <div><span>Media al mes en ${Y}</span><b>${eurC(sumaG(delAnio) / mesesConGasto)}</b></div>
-        <div><span>Lo que más</span><b>${cats[0] && cats[0][1] ? esc(cats[0][0]) : '—'}</b>${cats[0] && cats[0][1] ? `<small>${eurC(cats[0][1])}</small>` : ''}</div></div>`;
+      ? `<div class="cifras cg-cifras cuatro"><div><span>Entró en ${MESES[+mes.slice(5) - 1]}</span><b>${eurI(ingT)}</b><small>${plural(ingMes.length, 'ingreso', 'ingresos')}</small></div>
+        <div><span>Gastado</span><b>${eurG(total)}</b>${totalAnt ? `<small class="${total > totalAnt ? 'rojo' : 'verde-t'}">${total > totalAnt ? '▲' : '▼'} ${eurC(Math.abs(total - totalAnt))} que el mes anterior</small>` : ''}</div>
+        <div><span>Ahorrado</span><b>${eurS(ingT - total)}</b><small>${ingT ? Math.round((ingT - total) / ingT * 100) + ' % de lo que entró' : 'sin ingresos apuntados'}</small></div>
+        <div><span>Lo que más</span><b>${cats[0] && cats[0][1] ? esc(cats[0][0]) : '—'}</b>${cats[0] && cats[0][1] ? `<small>${eurG(cats[0][1])}</small>` : ''}</div></div>`
+      : `<div class="cifras cg-cifras"><div><span>Gastado en ${MESES[+mes.slice(5) - 1]}</span><b>${eurG(total)}</b>${totalAnt ? `<small class="${total > totalAnt ? 'rojo' : 'verde-t'}">${total > totalAnt ? '▲' : '▼'} ${eurC(Math.abs(total - totalAnt))} que el mes anterior</small>` : ''}</div>
+        <div><span>Media al mes en ${Y}</span><b>${eurG(sumaG(delAnio) / mesesConGasto)}</b></div>
+        <div><span>Lo que más</span><b>${cats[0] && cats[0][1] ? esc(cats[0][0]) : '—'}</b>${cats[0] && cats[0][1] ? `<small>${eurG(cats[0][1])}</small>` : ''}</div></div>`;
     const barra = ([cat, v]) => {
       const pm = +P[cat] || 0, est = pm ? (v > pm ? ' pasado' : v >= pm * 0.85 ? ' cerca' : ' bien') : '';
-      return `<button class="cg-cat${filtro === cat ? ' on' : ''}${est}" data-cgcat="${esc(cat)}"><span>${pill(cat)}</span><span class="cg-barra"><i style="--w:${Math.round(v / maxC * 100)}%;--h:${colorCatC(cat)}"></i>${pm ? `<em style="--p:${Math.round(pm / maxC * 100)}%" title="Presupuesto ${eurC(pm)}"></em>` : ''}</span><b>${eurC(v)}</b><small>${pm ? `de ${n0C(pm)} €` : Math.round(v / (total || 1) * 100) + ' %'}</small></button>`;
+      return `<button class="cg-cat${filtro === cat ? ' on' : ''}${est}" data-cgcat="${esc(cat)}"><span>${pill(cat)}</span><span class="cg-barra"><i style="--w:${Math.round(v / maxC * 100)}%;--h:${colorCatC(cat)}"></i>${pm ? `<em style="--p:${Math.round(pm / maxC * 100)}%" title="Presupuesto ${eurC(pm)}"></em>` : ''}</span><b>${eurG(v)}</b><small>${pm ? `de ${n0C(pm)} €` : Math.round(v / (total || 1) * 100) + ' %'}</small></button>`;
     };
     const filaGasto = (g) => {
       const previsto = (g.fecha || '') > hoy();
       const catCelda = g.partes ? `<span class="cg-partes" title="Repartido">${g.partes.map(t => pill(`${t.cat} ${n0C(t.importe)}`)).join(' ')}</span>`
         : `<select class="cg-sel" data-cgset="${g.id}" style="--h:${colorCatC(g.cat)}">${catsCasa().map(x => `<option${x === g.cat ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
       return `<tr data-id="${g.id}" class="${previsto ? 'previsto' : ''}"><td>${fechaC(g.fecha)}</td><td><b>${esc(g.concepto)}</b>${g.fijo ? ' <span class="pill-cc gris" title="Gasto fijo: se apunta solo">🔁</span>' : g.periodicidad && g.periodicidad !== 'Puntual' ? ` <span class="pill-cc gris">${esc(g.periodicidad)}</span>` : ''}${previsto ? ' <span class="pill-cc gris">previsto</span>' : ''}${g.notas ? `<small class="bloque">${esc(g.notas)}</small>` : ''}</td>
-        <td>${catCelda}</td><td class="num"><b>${eurC(filtro && g.partes ? deCat(g, filtro) : g.importe)}</b>${filtro && g.partes ? `<small class="bloque tenue">de ${eurC(g.importe)}</small>` : ''}</td>
+        <td>${catCelda}</td><td class="num"><b>${eurG(filtro && g.partes ? deCat(g, filtro) : g.importe)}</b>${filtro && g.partes ? `<small class="bloque tenue">de ${eurG(g.importe)}</small>` : ''}</td>
         <td><button class="btn-x" data-cgdel="${g.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`;
     };
     return `${cifras}
@@ -250,11 +253,11 @@ function casaGastos(c) {
     ${filtro ? `<p class="nota">Solo ${esc(filtro)} · <a href="#" id="cg-todas">ver todas</a></p>` : ''}
     ${filas.length ? `<div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th><th></th></tr></thead><tbody>
       ${filas.map(filaGasto).join('')}
-      </tbody><tfoot><tr><td></td><td><b>Total${filtro ? ' ' + esc(filtro) : ''}</b></td><td></td><td class="num"><b>${eurC(sumaCat(filas, filtro))}</b></td><td></td></tr></tfoot></table></div>`
+      </tbody><tfoot><tr><td></td><td><b>Total${filtro ? ' ' + esc(filtro) : ''}</b></td><td></td><td class="num"><b>${eurG(sumaCat(filas, filtro))}</b></td><td></td></tr></tfoot></table></div>`
       : `<div class="vacio"><p>No hay gastos de casa en ${nombreM(mes)}.</p><p class="tenue">Apúntalos con <b>+ Gasto</b> o sube el archivo de movimientos de tu banco: la app separa los gastos, los clasifica (supermercado, suscripciones, colegio…) y aprende de lo que corrijas.</p></div>`}
     ${ingMes.length ? `<h3 class="cg-h3">Ingresos de ${MESES[+mes.slice(5) - 1]}</h3><div class="tabla-wrap"><table class="tabla cg-tabla cg-ingt"><tbody>
-      ${ingMes.map(g => `<tr data-ing="${g.id}"><td>${fechaC(g.fecha)}</td><td>${esc(g.concepto)}</td><td class="num verde-t"><b>${eurC(g.importe)}</b></td><td><button class="btn-x" data-ingdel="${g.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`).join('')}
-      </tbody><tfoot><tr><td></td><td><b>Total ingresos</b></td><td class="num"><b>${eurC(ingT)}</b></td><td></td></tr></tfoot></table></div>` : ''}`;
+      ${ingMes.map(g => `<tr data-ing="${g.id}"><td>${fechaC(g.fecha)}</td><td>${esc(g.concepto)}</td><td class="num"><b>${eurI(g.importe)}</b></td><td><button class="btn-x" data-ingdel="${g.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`).join('')}
+      </tbody><tfoot><tr><td></td><td><b>Total ingresos</b></td><td class="num"><b>${eurI(ingT)}</b></td><td></td></tr></tfoot></table></div>` : ''}`;
   };
 
   c.innerHTML = `<div class="cg-cab">
@@ -420,9 +423,9 @@ function ventanaFijos() {
         const alMes = fs.filter(f => f.activo !== false).reduce((s, f) => s + (+f.importe || 0) / ({ Mensual: 1, Trimestral: 3, Anual: 12 }[f.cada || 'Mensual'] || 1), 0);
         $('#fj-lista', m).innerHTML = fs.length ? `<div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Concepto</th><th>Categoría</th><th>Cuándo</th><th class="num">Importe</th><th></th></tr></thead><tbody>
           ${fs.map(f => `<tr data-fj="${f.id}" class="${f.activo === false ? 'parada' : ''}"><td><b>${esc(f.concepto)}</b>${f.activo === false ? ' <span class="pill-cc gris">en pausa</span>' : ''}<small class="bloque tenue">en el banco: «${esc(claveFijo(f))}»</small></td><td><span class="pill-cc" style="--h:${colorCatC(f.cat)}">${esc(f.cat || 'Otros')}</span></td>
-            <td>${f.cada === 'Anual' ? `cada año, ${+f.dia || 1} de ${MESES[(+f.mes || 1) - 1]}` : f.cada === 'Trimestral' ? `cada 3 meses, día ${+f.dia || 1}` : `cada mes, día ${+f.dia || 1}`}</td><td class="num"><b>${eurC(f.importe)}</b></td>
+            <td>${f.cada === 'Anual' ? `cada año, ${+f.dia || 1} de ${MESES[(+f.mes || 1) - 1]}` : f.cada === 'Trimestral' ? `cada 3 meses, día ${+f.dia || 1}` : `cada mes, día ${+f.dia || 1}`}</td><td class="num"><b>${eurG(f.importe)}</b></td>
             <td><button class="btn-x" data-fjdel="${f.id}" title="Borrar" aria-label="Borrar">×</button></td></tr>`).join('')}
-          </tbody><tfoot><tr><td colspan="3"><b>Al mes (de media)</b></td><td class="num"><b>${eurC(alMes)}</b></td><td></td></tr></tfoot></table></div>`
+          </tbody><tfoot><tr><td colspan="3"><b>Al mes (de media)</b></td><td class="num"><b>${eurG(alMes)}</b></td><td></td></tr></tfoot></table></div>`
           : '<p class="vacio">Aún no tienes gastos fijos. Añade el alquiler, la luz, el colegio, las suscripciones… o marca «Se repite» en cualquier gasto.</p>';
         $$('[data-fj]', m).forEach(tr => tr.onclick = (e) => { if (e.target.closest('button')) return; editarFijo(D.fijosCasa.find(f => f.id === tr.dataset.fj), pinta); });
         $$('[data-fjdel]', m).forEach(b => b.onclick = () => {
@@ -636,11 +639,11 @@ async function importarBanco(f) {
     modal(`<h3>Movimientos de ${esc(f.name)}</h3>
       <p>He encontrado <b>${plural(nuevos.length, 'gasto nuevo', 'gastos nuevos')}</b>${desde ? ` (del ${+desde.slice(8)} ${MESES_C[+desde.slice(5, 7) - 1]} al ${+hasta.slice(8)} ${MESES_C[+hasta.slice(5, 7) - 1]} ${hasta.slice(0, 4)})` : ''}.
         ${repes ? ` ${plural(repes, 'ya estaba apuntado', 'ya estaban apuntados')}.` : ''}${juntados ? ` ${juntados === 1 ? 'Uno es' : juntados + ' son'} de tus gastos fijos y se ${juntados === 1 ? 'junta' : 'juntan'} con el previsto (no se cuenta dos veces).` : ''}</p>
-      ${ingNuevos.length ? `<label class="cg-recordar cg-ingchk"><input type="checkbox" id="cg-ingok" checked> Guardar también ${ingNuevos.length === 1 ? 'el ingreso' : `los ${ingNuevos.length} ingresos`} (${eurC(sumaG(ingNuevos))}: nóminas, bizums que te hacen…) para ver lo que ahorras</label>` : ''}
+      ${ingNuevos.length ? `<label class="cg-recordar cg-ingchk"><input type="checkbox" id="cg-ingok" checked> Guardar también ${ingNuevos.length === 1 ? 'el ingreso' : `los ${ingNuevos.length} ingresos`} (${eurI(sumaG(ingNuevos))}: nóminas, bizums que te hacen…) para ver lo que ahorras</label>` : ''}
       ${todosPositivos ? '<p class="nota">El archivo no distingue gastos e ingresos (todo va en positivo): revisa la lista y quita los ingresos.</p>' : ''}
       ${nuevos.length ? `<p class="suave">Así los he clasificado (luego puedes cambiar cualquiera y aprendo para la próxima):</p>
       <div class="cg-prev">${Object.entries(porCat).sort((a, b) => b[1] - a[1]).map(([cat, n]) => `<span class="pill-cc" style="--h:${colorCatC(cat)}">${esc(cat)} · ${n}</span>`).join(' ')}</div>
-      <div class="cg-prev-lista">${nuevos.slice(0, 200).map((g, i) => `<label><input type="checkbox" data-i="${i}" checked> <span>${+g.fecha.slice(8)} ${MESES_C[+g.fecha.slice(5, 7) - 1]}</span> <span>${esc(g.concepto)}${g.fijoId ? ' <span class="pill-cc gris">🔁</span>' : ''}</span> <b>${eurC(g.importe)}</b></label>`).join('')}</div>` : ''}
+      <div class="cg-prev-lista">${nuevos.slice(0, 200).map((g, i) => `<label><input type="checkbox" data-i="${i}" checked> <span>${+g.fecha.slice(8)} ${MESES_C[+g.fecha.slice(5, 7) - 1]}</span> <span>${esc(g.concepto)}${g.fijoId ? ' <span class="pill-cc gris">🔁</span>' : ''}</span> <b>${eurG(g.importe)}</b></label>`).join('')}</div>` : ''}
       <div class="pie"><button class="btn" data-cerrar>Cancelar</button>${nuevos.length || ingNuevos.length ? '<button class="btn prim" id="cg-imp">Importar</button>' : ''}</div>`, {
       clase: 'ancha',
       alAbrir: (m, cerrar) => {

@@ -655,3 +655,6 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .rp-fila { display: grid; grid-template-columns: 1fr 120px 28px; gap: 8px; margin-bottom: 6px; align-items: center; }
 .ajg-fila { grid-template-columns: 22px 1fr 76px 30px 28px; } .ajg-pres { padding: 5px 6px !important; text-align: right; }
 @media (max-width: 760px) { .cifras.cg-cifras.cuatro { grid-template-columns: 1fr 1fr; } .cg-cat { grid-template-columns: 1fr 70px 70px; } }
+.cg-menos { color: #c0453a; white-space: nowrap; } .cg-mas { color: #2f8a57; white-space: nowrap; }
+.cg-rojo { color: #c0453a; } .cg-verde { color: #2f8a57; } .cg-rojo.pasado { font-weight: 700; background: #fbe9e6; }
+.cifras .cg-menos, .cifras .cg-mas { font: inherit; color: inherit; } .cifras b .cg-menos { color: #c0453a; } .cifras b .cg-mas { color: #2f8a57; }
