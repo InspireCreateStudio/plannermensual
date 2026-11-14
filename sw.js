@@ -1,6 +1,6 @@
 // Planner — funciona sin conexión.
 // Sirve los archivos guardados y, si hay internet, se trae la versión nueva para la próxima vez.
-const VERSION = 'planner-v37';
+const VERSION = 'planner-v38';
 const ARCHIVOS = ['./', './index.html', './apps.js', './app.css', './base.js', './datos.js', './avisos.js', './editor.js', './v-inicio.js', './v-tareas.js', './v-rapida.js', './v-calendario.js',
   './v-descarga.js', './v-objetivos.js', './v-redes.js', './v-casa.js', './v-casa-gastos.js', './v-eventos.js', './v-turnos.js', './v-habitos.js', './v-empleo.js', './v-ayuntamiento.js', './v-trabajos.js', './v-ajustes.js', './copia-drive.js', './google.js', './perfil.js', './arranque.js',
   './manifest.webmanifest', './iconos/32.png', './iconos/180.png', './iconos/192.png', './iconos/512.png'];

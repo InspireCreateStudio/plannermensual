@@ -268,6 +268,38 @@ function casaGastos(c) {
         : `<tr data-id="${g.id}">${chk('g:' + g.id)}<td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurG(g.importe)}</td></tr>`).join('')}
       </tbody></table></div>`;
   };
+  // Comparativa de ingresos y gastos: mes a mes (con el año anterior) y año a año
+  const comparativa = () => {
+    const G = D.gastosCasa, I = D.ingresosCasa || [];
+    const sumM = (xs, m) => sumaG(xs.filter(g => (g.fecha || '').startsWith(m) && (g.fecha || '') <= hoy()));
+    const meses = Array.from({ length: 12 }, (_, i) => `${Y}-${pad(i + 1)}`);
+    const fil = meses.map(m => { const i = sumM(I, m), g = sumM(G, m), gAnt = sumM(G, sumaMes(m, -12)), iAnt = sumM(I, sumaMes(m, -12)); return { m, i, g, a: i - g, gAnt, iAnt }; });
+    const conDatos = fil.filter(f => f.i || f.g);
+    if (!conDatos.length && !G.length && !I.length) return `<div class="vacio"><p>Aún no hay ingresos ni gastos para comparar.</p></div>`;
+    const max = Math.max(1, ...fil.map(f => Math.max(f.i, f.g)));
+    const tI = fil.reduce((s, f) => s + f.i, 0), tG = fil.reduce((s, f) => s + f.g, 0), nM = conDatos.length || 1;
+    const pct = (a, b) => b ? Math.round(a / b * 100) : null;
+    const dif = (x, ant, gasto) => { if (!ant || !x) return '<span class="tenue">—</span>'; const d = x - ant, p = Math.round(d / ant * 100); const malo = gasto ? d > 0 : d < 0; return `<span class="${malo ? 'cg-rojo' : 'cg-verde'}">${d > 0 ? '▲' : '▼'} ${Math.abs(p)} %</span>`; };
+    const mejor = conDatos.slice().sort((a, b) => b.a - a.a)[0], peor = conDatos.slice().sort((a, b) => b.g - a.g)[0];
+    // año a año
+    const anios = [...new Set([...G, ...I].map(g => (g.fecha || '').slice(0, 4)).filter(Boolean))].sort();
+    const porAnio = anios.map(y => { const gs = G.filter(g => g.fecha.startsWith(y) && g.fecha <= hoy()), is = I.filter(g => g.fecha.startsWith(y) && g.fecha <= hoy()); const n = new Set([...gs, ...is].map(g => g.fecha.slice(0, 7))).size || 1; return { y, i: sumaG(is), g: sumaG(gs), n }; });
+    const maxA = Math.max(1, ...porAnio.map(a => Math.max(a.i, a.g)));
+    return `<div class="cifras cg-cifras cuatro"><div><span>Entró en ${Y}</span><b>${eurI(tI)}</b><small>${eurC(tI / nM)} al mes de media</small></div>
+        <div><span>Gastado en ${Y}</span><b>${eurG(tG)}</b><small>${eurC(tG / nM)} al mes de media</small></div>
+        <div><span>Ahorrado en ${Y}</span><b>${eurS(tI - tG)}</b><small>${tI ? pct(tI - tG, tI) + ' % de lo que entró' : 'sin ingresos apuntados'}</small></div>
+        <div><span>Mejor mes</span><b>${mejor ? MESES[+mejor.m.slice(5) - 1] : '—'}</b><small>${mejor ? 'ahorraste ' + eurC(mejor.a) : ''}${peor && peor !== mejor ? ` · más gasto: ${MESES[+peor.m.slice(5) - 1]}` : ''}</small></div></div>
+      <h3 class="cg-h3">Mes a mes</h3>
+      <div class="cg-comp">${fil.map(f => `<button class="cg-compmes" data-cgir="${f.m}" title="Ver ${MESES[+f.m.slice(5) - 1]}"><span class="cg-par"><i class="ing" style="--alto:${Math.round(f.i / max * 100)}%"></i><i class="gas" style="--alto:${Math.round(f.g / max * 100)}%"></i></span><b class="${f.a < 0 ? 'cg-rojo' : f.a > 0 ? 'cg-verde' : 'tenue'}">${f.i || f.g ? (f.a < 0 ? '−' : '+') + n0C(Math.abs(f.a)) : ''}</b><small>${MESES_C[+f.m.slice(5) - 1]}</small></button>`).join('')}</div>
+      <p class="cg-leyenda"><span><i class="ing"></i> Ingresos</span><span><i class="gas"></i> Gastos</span><span>Debajo, lo ahorrado ese mes</span></p>
+      <div class="tabla-wrap"><table class="tabla cg-comptab"><thead><tr><th>Mes</th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Ahorro</th><th class="num">% ahorro</th><th class="num">Gastos ${+Y - 1}</th><th class="num">Gastos vs ${+Y - 1}</th><th class="num">Ingresos vs ${+Y - 1}</th></tr></thead><tbody>
+      ${fil.map(f => `<tr data-cgir="${f.m}" class="${f.i || f.g ? '' : 'vacio-f'}"><td class="cap">${MESES[+f.m.slice(5) - 1]}</td><td class="num">${f.i ? eurI(f.i) : '<span class="tenue">—</span>'}</td><td class="num">${f.g ? eurG(f.g) : '<span class="tenue">—</span>'}</td><td class="num">${f.i || f.g ? `<b>${eurS(f.a)}</b>` : ''}</td><td class="num">${f.i ? `<span class="${f.a < 0 ? 'cg-rojo' : 'cg-verde'}">${pct(f.a, f.i)} %</span>` : ''}</td><td class="num tenue">${f.gAnt ? '−' + eurC(f.gAnt) : '—'}</td><td class="num">${dif(f.g, f.gAnt, true)}</td><td class="num">${dif(f.i, f.iAnt, false)}</td></tr>`).join('')}
+      </tbody><tfoot><tr><td><b>Total ${Y}</b></td><td class="num"><b>${eurI(tI)}</b></td><td class="num"><b>${eurG(tG)}</b></td><td class="num"><b>${eurS(tI - tG)}</b></td><td class="num">${tI ? pct(tI - tG, tI) + ' %' : ''}</td><td class="num tenue">${(() => { const x = fil.reduce((s, f) => s + f.gAnt, 0); return x ? '−' + eurC(x) : '—'; })()}</td><td></td><td></td></tr></tfoot></table></div>
+      ${porAnio.length ? `<h3 class="cg-h3">Año a año</h3>
+      <div class="tabla-wrap"><table class="tabla cg-comptab"><thead><tr><th>Año</th><th></th><th class="num">Ingresos</th><th class="num">Gastos</th><th class="num">Ahorro</th><th class="num">% ahorro</th><th class="num">Gasto medio al mes</th><th class="num">Gastos vs año anterior</th></tr></thead><tbody>
+      ${porAnio.map((a, k) => `<tr data-cganio="${a.y}" class="${a.y === Y ? 'sel' : ''}"><td><b>${a.y}</b>${a.y === hoy().slice(0, 4) ? ' <small class="tenue">(hasta hoy)</small>' : ''}</td><td class="cg-abarra"><i class="ing" style="--w:${Math.round(a.i / maxA * 100)}%"></i><i class="gas" style="--w:${Math.round(a.g / maxA * 100)}%"></i></td><td class="num">${eurI(a.i)}</td><td class="num">${eurG(a.g)}</td><td class="num"><b>${eurS(a.i - a.g)}</b></td><td class="num">${a.i ? pct(a.i - a.g, a.i) + ' %' : '—'}</td><td class="num">${eurC(a.g / a.n)}</td><td class="num">${k ? dif(a.g / a.n, porAnio[k - 1].g / porAnio[k - 1].n, true) + ' <small class="tenue">al mes</small>' : '<span class="tenue">—</span>'}</td></tr>`).join('')}
+      </tbody></table></div><p class="nota">Solo cuenta lo ya pasado (no los fijos «previstos»). «Gastos vs año anterior» compara el gasto medio al mes, para que un año a medias no salga engañoso.</p>` : ''}`;
+  };
   // Vista del mes
   const vistaMes = () => {
     const ingT = sumaG(ingMes);
@@ -305,9 +337,9 @@ function casaGastos(c) {
   };
 
   c.innerHTML = `<div class="cg-cab">
-      <div class="cg-mes"><button class="btn peq" id="cg-ant" aria-label="Anterior">‹</button><b>${vista === 'anio' ? Y : vista === 'subs' ? 'Último año' : nombreM(mes)}</b><button class="btn peq" id="cg-sig" aria-label="Siguiente">›</button></div>
-      <div class="segmentado peq"><button class="${vista === 'mes' ? 'on' : ''}" data-cgv="mes">Mes</button><button class="${vista === 'anio' ? 'on' : ''}" data-cgv="anio">Año</button><button class="${vista === 'subs' ? 'on' : ''}" data-cgv="subs">Suscripciones</button></div>
-      ${vista === 'subs' ? '' : `<select id="cg-filtro" class="cg-filtro${filtro ? ' on' : ''}" aria-label="Tipo de gasto"><option value="">Todos los gastos</option>${catsCasa().map(x => `<option${x === filtro ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>`}
+      <div class="cg-mes"><button class="btn peq" id="cg-ant" aria-label="Anterior">‹</button><b>${vista === 'anio' || vista === 'comp' ? Y : vista === 'subs' ? 'Último año' : nombreM(mes)}</b><button class="btn peq" id="cg-sig" aria-label="Siguiente">›</button></div>
+      <div class="segmentado peq"><button class="${vista === 'mes' ? 'on' : ''}" data-cgv="mes">Mes</button><button class="${vista === 'anio' ? 'on' : ''}" data-cgv="anio">Año</button><button class="${vista === 'subs' ? 'on' : ''}" data-cgv="subs">Suscripciones</button><button class="${vista === 'comp' ? 'on' : ''}" data-cgv="comp">Comparativa</button></div>
+      ${vista === 'subs' || vista === 'comp' ? '' : `<select id="cg-filtro" class="cg-filtro${filtro ? ' on' : ''}" aria-label="Tipo de gasto"><option value="">Todos los gastos</option>${catsCasa().map(x => `<option${x === filtro ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>`}
       <input type="search" id="cg-buscar" class="cg-buscar" placeholder="🔍 Buscar concepto…" value="${esc(UI.cgBuscar || '')}" aria-label="Buscar concepto"></div>
     <div class="cg-cab cg-acc">
       <button class="btn prim" id="cg-nuevo">+ Gasto</button><button class="btn" id="cg-ning">+ Ingreso</button>
@@ -316,7 +348,7 @@ function casaGastos(c) {
       <button class="btn" id="cg-fijos" title="Gastos que se apuntan solos cada mes">🔁 Fijos${(D.fijosCasa || []).length ? ' · ' + (D.fijosCasa || []).filter(f => f.activo !== false).length : ''}</button>
       <button class="btn" id="cg-excel">⬇️ Excel</button>
       <input type="file" id="cg-file" accept=".csv,.txt,.xlsx,.xls,text/csv" hidden></div>
-    ${busca ? buscar() : vista === 'subs' ? suscripciones() : vista === 'anio' ? (filtro ? anioCat() : anio()) : vistaMes()}`;
+    ${busca ? buscar() : vista === 'comp' ? comparativa() : vista === 'subs' ? suscripciones() : vista === 'anio' ? (filtro ? anioCat() : anio()) : vistaMes()}`;
 
   const bq = $('#cg-buscar', c); let tBq;
   bq.oninput = () => { clearTimeout(tBq); tBq = setTimeout(() => { UI.cgBuscar = bq.value; pintar(); const n = $('#cg-buscar'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 250); };
@@ -332,10 +364,11 @@ function casaGastos(c) {
     cambio();
     aviso(`${plural(n, 'apunte pasado', 'apuntes pasados')} a ${cat === ES_ING ? 'ingresos' : cat}${recordar ? '; los próximos irán solos' : ''}`, { t: 'Deshacer', fn: () => { const a = JSON.parse(copia); D.gastosCasa = a.g; D.ingresosCasa = a.i; D.reglasCasa = a.r; cambio(); } });
   };
-  const mover = (k) => { UI.cgMes = sumaMes(mes, vista === 'anio' ? 12 * k : k); guardarUI(); pintar(); };
+  const mover = (k) => { UI.cgMes = sumaMes(mes, vista === 'anio' || vista === 'comp' ? 12 * k : k); guardarUI(); pintar(); };
   $('#cg-ant', c).onclick = () => mover(-1); $('#cg-sig', c).onclick = () => mover(1);
   if (vista === 'subs') { $('#cg-ant', c).style.visibility = 'hidden'; $('#cg-sig', c).style.visibility = 'hidden'; }
   const fl = $('#cg-filtro', c); if (fl) fl.onchange = (e) => { UI.cgCat = e.target.value; guardarUI(); pintar(); };
+  $$('[data-cganio]', c).forEach(tr => tr.onclick = () => { UI.cgMes = tr.dataset.cganio + UI.cgMes.slice(4); if (!UI.cgMes || UI.cgMes.length !== 7) UI.cgMes = tr.dataset.cganio + '-01'; guardarUI(); pintar(); });
   $$('[data-cgir]', c).forEach(b => b.onclick = () => { UI.cgMes = b.dataset.cgir; UI.cgVista = 'mes'; guardarUI(); pintar(); });
   $$('.cg-anio [data-cgfila]', c).forEach(tr => tr.onclick = () => { UI.cgCat = tr.dataset.cgfila; guardarUI(); pintar(); });
   $$('[data-sel]', c).forEach(x => x.onchange = () => { if (x.checked) SELC.add(x.dataset.sel); else SELC.delete(x.dataset.sel); pintar(); });
