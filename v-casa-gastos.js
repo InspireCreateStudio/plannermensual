@@ -32,7 +32,7 @@ const claveConcepto = (t) => normCasa(t).replace(/\d+/g, ' ').replace(/[^a-z ]/g
 function adivinarCat(concepto) {
   const c = normCasa(concepto), k = claveConcepto(concepto);
   // Primero las tuyas (las escritas a mano, las más largas antes), luego las aprendidas al corregir, luego las de serie
-  const reglas = (D.reglasCasa || []).slice().sort((a, b) => (b.mano ? 1 : 0) - (a.mano ? 1 : 0) || b.clave.length - a.clave.length);
+  const reglas = (D.reglasCasa || []).filter(x => x.cat && x.cat !== ES_ING).sort((a, b) => (b.mano ? 1 : 0) - (a.mano ? 1 : 0) || b.clave.length - a.clave.length);
   const r = reglas.find(x => x.clave && (k === x.clave || c.includes(x.clave)));
   const vale = (cat) => catsCasa().includes(cat) ? cat : 'Otros';
   if (r) return vale(r.cat);
@@ -47,6 +47,29 @@ function recordarCat(concepto, cat) {
   D.reglasCasa.push({ clave: k, cat });
 }
 const eurC = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(Math.round((Number(v) || 0) * 100) / 100);
+// Ingresos: palabras que delatan que un movimiento es dinero que entra
+const ES_ING = '➕ Ingreso';
+const PISTA_ING = /nomina|salario|sueldo|abono|ingreso|transferencia (recibida|a su favor|a favor)|bizum (recibido|de )|devoluci|reembolso|reintegro de|pension|prestacion|lanbide|sepe|subsidio|intereses|dividendo|ayuda familiar/;
+function esIngresoConcepto(concepto) {
+  const c = normCasa(concepto), k = claveConcepto(concepto);
+  const r = (D.reglasCasa || []).filter(x => x.clave && (k === x.clave || c.includes(x.clave))).sort((a, b) => (b.mano ? 1 : 0) - (a.mano ? 1 : 0) || b.clave.length - a.clave.length)[0];
+  if (r) return r.cat === ES_ING;
+  return PISTA_ING.test(c);
+}
+// Pasar un apunte de gastos a ingresos y al revés
+function gastoAIngreso(g) {
+  D.gastosCasa = (D.gastosCasa || []).filter(x => x.id !== g.id);
+  (D.ingresosCasa = D.ingresosCasa || []).push({ id: g.id, fecha: g.fecha, concepto: g.concepto, importe: Math.abs(+g.importe || 0), notas: g.notas || '', origen: g.origen === 'fijo' ? '' : (g.origen || '') });
+}
+function ingresoAGasto(i, cat) {
+  D.ingresosCasa = (D.ingresosCasa || []).filter(x => x.id !== i.id);
+  (D.gastosCasa = D.gastosCasa || []).push({ id: i.id, fecha: i.fecha, concepto: i.concepto, importe: Math.abs(+i.importe || 0), notas: i.notas || '', cat: cat || adivinarCat(i.concepto), periodicidad: 'Puntual', origen: i.origen || '' });
+}
+const reglaTipo = (concepto, ingreso) => {
+  const k = claveConcepto(concepto) || normCasa(concepto); if (!k) return;
+  D.reglasCasa = (D.reglasCasa || []).filter(x => !(x.clave === k && (x.cat === ES_ING || ingreso)));
+  if (ingreso) D.reglasCasa.push({ clave: k, cat: ES_ING, mano: true });
+};
 // Orden alfabético, con «Otros» siempre al final
 const ordenCats = (xs) => xs.slice().sort((a, b) => (a === 'Otros') - (b === 'Otros') || a.localeCompare(b, 'es', { sensitivity: 'base' }));
 const catsCasa = () => ordenCats([...new Set([...(D.listas.catCasa || CATS_CASA), ...(D.gastosCasa || []).map(g => g.cat).filter(Boolean)])]);
@@ -210,19 +233,22 @@ function casaGastos(c) {
   // Buscar un concepto en todos los gastos (de cualquier fecha) y pasarlos a una categoría
   const busca = normCasa(UI.cgBuscar || '');
   const encontrados = busca ? D.gastosCasa.filter(g => normCasa(g.concepto + ' ' + (g.notas || '')).includes(busca)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')) : [];
+  const encontradosI = busca ? (D.ingresosCasa || []).filter(g => normCasa(g.concepto + ' ' + (g.notas || '')).includes(busca)).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')) : [];
   const buscar = () => {
-    if (!encontrados.length) return `<p class="vacio">Ningún gasto tiene «${esc(UI.cgBuscar)}» en el concepto.</p>`;
+    if (!encontrados.length && !encontradosI.length) return `<p class="vacio">Ningún gasto ni ingreso tiene «${esc(UI.cgBuscar)}» en el concepto.</p>`;
     const cuentaCat = {}; encontrados.forEach(g => { cuentaCat[g.cat || 'Otros'] = (cuentaCat[g.cat || 'Otros'] || 0) + 1; });
-    const masUsada = Object.entries(cuentaCat).sort((a, b) => b[1] - a[1])[0][0];
+    const masUsada = encontrados.length >= encontradosI.length && encontrados.length ? Object.entries(cuentaCat).sort((a, b) => b[1] - a[1])[0][0] : ES_ING;
     const regla = (D.reglasCasa || []).find(r => r.clave === busca);
-    return `<div class="cg-pasar"><b>${plural(encontrados.length, 'gasto', 'gastos')} con «${esc(UI.cgBuscar)}»</b> · ${eurG(sumaG(encontrados))}
+    const todos = [...encontrados.map(g => ({ g, ing: false })), ...encontradosI.map(g => ({ g, ing: true }))].sort((a, b) => (b.g.fecha || '').localeCompare(a.g.fecha || ''));
+    return `<div class="cg-pasar"><b>${[encontrados.length ? plural(encontrados.length, 'gasto', 'gastos') : '', encontradosI.length ? plural(encontradosI.length, 'ingreso', 'ingresos') : ''].filter(Boolean).join(' y ')} con «${esc(UI.cgBuscar)}»</b>${encontrados.length ? ' · ' + eurG(sumaG(encontrados)) : ''}${encontradosI.length ? ' · ' + eurI(sumaG(encontradosI)) : ''}
         <span class="hueco"></span><span>Pasarlos todos a</span>
-        <select id="cg-pcat">${catsCasa().map(x => `<option${x === (regla ? regla.cat : masUsada) ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>
+        <select id="cg-pcat"><option value="${ES_ING}"${(regla ? regla.cat : masUsada) === ES_ING ? ' selected' : ''}>➕ Ingresos</option><optgroup label="Gastos">${catsCasa().map(x => `<option${x === (regla ? regla.cat : masUsada) ? ' selected' : ''}>${esc(x)}</option>`).join('')}</optgroup></select>
         <label class="cg-recordar"><input type="checkbox" id="cg-precord" checked> y también los que lleguen</label>
         <button class="btn prim" id="cg-paplicar">Pasar</button></div>
       ${regla ? `<p class="nota">Ya tienes guardado que «${esc(regla.clave)}» va a ${esc(regla.cat)}.</p>` : ''}
       <div class="tabla-wrap"><table class="tabla cg-tabla"><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Importe</th></tr></thead><tbody>
-      ${encontrados.map(g => `<tr data-id="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurG(g.importe)}</td></tr>`).join('')}
+      ${todos.map(({ g, ing }) => ing ? `<tr data-ing="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td><span class="pill-cc cg-pill-ing">➕ Ingreso</span></td><td class="num">${eurI(g.importe)}</td></tr>`
+        : `<tr data-id="${g.id}"><td>${fechaC(g.fecha, true)}</td><td>${esc(g.concepto)}</td><td>${trozos(g).map(t => pill(t.cat)).join(' ')}</td><td class="num">${eurG(g.importe)}</td></tr>`).join('')}
       </tbody></table></div>`;
   };
   // Vista del mes
@@ -280,11 +306,13 @@ function casaGastos(c) {
   const pa = $('#cg-paplicar', c);
   if (pa) pa.onclick = () => {
     const cat = $('#cg-pcat', c).value, recordar = $('#cg-precord', c).checked;
-    const antes = encontrados.map(g => [g, g.cat, g.partes]), reglasAntes = (D.reglasCasa || []).slice();
-    encontrados.forEach(g => { g.cat = cat; delete g.partes; });
+    const copia = JSON.stringify({ g: D.gastosCasa, i: D.ingresosCasa || [], r: D.reglasCasa || [] });
+    const n = encontrados.length + encontradosI.length;
+    if (cat === ES_ING) encontrados.forEach(g => gastoAIngreso(g));
+    else { encontrados.forEach(g => { g.cat = cat; delete g.partes; }); encontradosI.forEach(i => ingresoAGasto(i, cat)); }
     if (recordar) { D.reglasCasa = (D.reglasCasa || []).filter(r => r.clave !== busca); D.reglasCasa.push({ clave: busca, cat, mano: true }); }
     cambio();
-    aviso(`${plural(encontrados.length, 'gasto pasado', 'gastos pasados')} a ${cat}${recordar ? '; los próximos irán solos' : ''}`, { t: 'Deshacer', fn: () => { antes.forEach(([g, c0, p0]) => { g.cat = c0; if (p0) g.partes = p0; }); D.reglasCasa = reglasAntes; cambio(); } });
+    aviso(`${plural(n, 'apunte pasado', 'apuntes pasados')} a ${cat === ES_ING ? 'ingresos' : cat}${recordar ? '; los próximos irán solos' : ''}`, { t: 'Deshacer', fn: () => { const a = JSON.parse(copia); D.gastosCasa = a.g; D.ingresosCasa = a.i; D.reglasCasa = a.r; cambio(); } });
   };
   const mover = (k) => { UI.cgMes = sumaMes(mes, vista === 'anio' ? 12 * k : k); guardarUI(); pintar(); };
   $('#cg-ant', c).onclick = () => mover(-1); $('#cg-sig', c).onclick = () => mover(1);
@@ -319,23 +347,33 @@ function casaGastos(c) {
 
 function editarGastoCasa(g, nuevo) {
   ficha({
-    titulo: nuevo ? 'Nuevo gasto de casa' : 'Gasto de casa', obj: { ...g },
+    titulo: nuevo ? 'Nuevo gasto de casa' : 'Gasto de casa', obj: { ...g, tipo: 'Gasto' },
     campos: [
       { k: 'concepto', t: 'Concepto', tipo: 'lista', op: [...new Set((D.gastosCasa || []).map(x => x.concepto))].slice(-200) },
       { k: 'importe', t: 'Importe (€)', tipo: 'num', ancho: 'medio' },
       { k: 'fecha', t: 'Fecha', tipo: 'fecha', ancho: 'medio' },
+      { k: 'tipo', t: 'Es', tipo: 'select', op: ['Gasto', 'Ingreso'], vacio: false, ancho: 'medio' },
       { k: 'cat', t: g.partes ? 'Categoría (está repartido)' : 'Categoría', tipo: 'lista', op: catsCasa(), ancho: 'medio' },
       { k: 'periodicidad', t: 'Se repite', tipo: 'select', op: ['Puntual', 'Mensual', 'Trimestral', 'Anual'], vacio: false, ancho: 'medio' },
       { k: 'notas', t: 'Notas', tipo: 'texto' },
     ],
     extras: [{ t: '÷ Repartir en categorías', fn: (r, cerrar) => { const fin = guardarGastoCasa(g, r); if (!fin) return; cerrar(); repartirGasto(fin); } }],
-    onGuardar: (r) => { if (!guardarGastoCasa(g, r)) return false; },
+    onGuardar: (r) => {
+      if (r.tipo === 'Ingreso') { // era un ingreso: se pasa a Ingresos (y los próximos con ese concepto también)
+        if (!r.concepto) { aviso('Escribe el concepto'); return false; }
+        const x = { ...g, ...r, id: g.id || uid(), importe: Math.abs(+r.importe || 0), fecha: r.fecha || hoy() };
+        if (!nuevo) D.gastosCasa = D.gastosCasa.filter(y => y.id !== g.id);
+        gastoAIngreso(x); reglaTipo(x.concepto, true); cambio();
+        aviso(`«${x.concepto}» pasa a ingresos (+${eurC(x.importe)}). Los próximos con ese concepto irán solos.`); return;
+      }
+      if (!guardarGastoCasa(g, r)) return false;
+    },
     onBorrar: nuevo ? null : () => { D.gastosCasa = D.gastosCasa.filter(x => x.id !== g.id); cambio(); return true; },
   });
 }
 function guardarGastoCasa(g, r) {
   if (!r.concepto) { aviso('Escribe el concepto'); return null; }
-  const fin = { ...g, ...r, id: g.id || uid(), importe: Math.abs(+r.importe || 0), cat: r.cat || adivinarCat(r.concepto), fecha: r.fecha || hoy() };
+  const fin = { ...g, ...r, id: g.id || uid(), importe: Math.abs(+r.importe || 0), cat: r.cat || adivinarCat(r.concepto), fecha: r.fecha || hoy() }; delete fin.tipo;
   if (fin.partes) { // si cambia el importe, se ajusta la última parte
     const resto = fin.importe - fin.partes.slice(0, -1).reduce((s, t) => s + +t.importe, 0);
     if (resto > 0) fin.partes = [...fin.partes.slice(0, -1), { ...fin.partes[fin.partes.length - 1], importe: Math.round(resto * 100) / 100 }]; else delete fin.partes;
@@ -393,16 +431,24 @@ function repartirGasto(g) {
 
 function editarIngresoCasa(g, nuevo) {
   ficha({
-    titulo: nuevo ? 'Nuevo ingreso' : 'Ingreso', obj: { ...g },
+    titulo: nuevo ? 'Nuevo ingreso' : 'Ingreso', obj: { ...g, tipo: 'Ingreso' },
     campos: [
       { k: 'concepto', t: 'Concepto', tipo: 'lista', op: [...new Set((D.ingresosCasa || []).map(x => x.concepto))].slice(-100) },
       { k: 'importe', t: 'Importe (€)', tipo: 'num', ancho: 'medio' },
       { k: 'fecha', t: 'Fecha', tipo: 'fecha', ancho: 'medio' },
+      { k: 'tipo', t: 'Es', tipo: 'select', op: ['Ingreso', 'Gasto'], vacio: false, ancho: 'medio' },
+      { k: 'cat', t: 'Categoría (si es gasto)', tipo: 'lista', op: catsCasa(), ancho: 'medio' },
       { k: 'notas', t: 'Notas', tipo: 'texto' },
     ],
     onGuardar: (r) => {
       if (!r.concepto) { aviso('Escribe el concepto'); return false; }
-      const fin = { ...g, ...r, id: g.id || uid(), importe: Math.abs(+r.importe || 0), fecha: r.fecha || hoy() };
+      if (r.tipo === 'Gasto') { // era un gasto: se pasa a Gastos
+        const x = { ...g, ...r, id: g.id || uid(), importe: Math.abs(+r.importe || 0), fecha: r.fecha || hoy() };
+        if (!nuevo) D.ingresosCasa = D.ingresosCasa.filter(y => y.id !== g.id);
+        ingresoAGasto(x, r.cat); reglaTipo(x.concepto, false); if (r.cat) recordarCat(x.concepto, r.cat); cambio();
+        aviso(`«${x.concepto}» pasa a gastos (−${eurC(x.importe)})`); return;
+      }
+      const fin = { ...g, ...r, id: g.id || uid(), importe: Math.abs(+r.importe || 0), fecha: r.fecha || hoy() }; delete fin.tipo; delete fin.cat;
       if (!D.ingresosCasa) D.ingresosCasa = [];
       const k = D.ingresosCasa.findIndex(x => x.id === fin.id);
       if (k >= 0) D.ingresosCasa[k] = fin; else D.ingresosCasa.push(fin);
@@ -621,7 +667,7 @@ async function importarBanco(f) {
     const gastos = mov.filter(m => m.imp < 0), ingresos = mov.length - gastos.length;
     // Si el banco pone los gastos en positivo (sin signo), se ofrecen todos
     const todosPositivos = !gastos.length && mov.length;
-    const lista = (todosPositivos ? mov : gastos).map(m => ({ fecha: m.fecha, concepto: m.concepto, importe: Math.abs(m.imp) }));
+    const lista = (todosPositivos ? mov.filter(m => !esIngresoConcepto(m.concepto)) : gastos).map(m => ({ fecha: m.fecha, concepto: m.concepto, importe: Math.abs(m.imp) }));
     const ya = new Set((D.gastosCasa || []).map(g => `${g.fecha}|${normCasa(g.concepto)}|${(+g.importe).toFixed(2)}`));
     const nuevos = lista.filter(g => !ya.has(`${g.fecha}|${normCasa(g.concepto)}|${g.importe.toFixed(2)}`)).map(g => ({ ...g, cat: adivinarCat(g.concepto) }));
     const repes = lista.length - nuevos.length;
@@ -633,14 +679,14 @@ async function importarBanco(f) {
     const juntados = nuevos.filter(g => g.junta).length;
     // Ingresos (nóminas, bizums que te hacen…): se pueden guardar para ver el ahorro
     const yaI = new Set((D.ingresosCasa || []).map(g => `${g.fecha}|${normCasa(g.concepto)}|${(+g.importe).toFixed(2)}`));
-    const ingNuevos = todosPositivos ? [] : mov.filter(m => m.imp > 0).map(m => ({ fecha: m.fecha, concepto: m.concepto, importe: m.imp })).filter(g => !yaI.has(`${g.fecha}|${normCasa(g.concepto)}|${g.importe.toFixed(2)}`));
+    const ingNuevos = mov.filter(m => todosPositivos ? esIngresoConcepto(m.concepto) : m.imp > 0).map(m => ({ fecha: m.fecha, concepto: m.concepto, importe: m.imp })).filter(g => !yaI.has(`${g.fecha}|${normCasa(g.concepto)}|${g.importe.toFixed(2)}`));
     const porCat = {}; nuevos.forEach(g => { porCat[g.cat] = (porCat[g.cat] || 0) + 1; });
     const desde = nuevos.map(g => g.fecha).sort()[0], hasta = nuevos.map(g => g.fecha).sort().pop();
     modal(`<h3>Movimientos de ${esc(f.name)}</h3>
       <p>He encontrado <b>${plural(nuevos.length, 'gasto nuevo', 'gastos nuevos')}</b>${desde ? ` (del ${+desde.slice(8)} ${MESES_C[+desde.slice(5, 7) - 1]} al ${+hasta.slice(8)} ${MESES_C[+hasta.slice(5, 7) - 1]} ${hasta.slice(0, 4)})` : ''}.
         ${repes ? ` ${plural(repes, 'ya estaba apuntado', 'ya estaban apuntados')}.` : ''}${juntados ? ` ${juntados === 1 ? 'Uno es' : juntados + ' son'} de tus gastos fijos y se ${juntados === 1 ? 'junta' : 'juntan'} con el previsto (no se cuenta dos veces).` : ''}</p>
       ${ingNuevos.length ? `<label class="cg-recordar cg-ingchk"><input type="checkbox" id="cg-ingok" checked> Guardar también ${ingNuevos.length === 1 ? 'el ingreso' : `los ${ingNuevos.length} ingresos`} (${eurI(sumaG(ingNuevos))}: nóminas, bizums que te hacen…) para ver lo que ahorras</label>` : ''}
-      ${todosPositivos ? '<p class="nota">El archivo no distingue gastos e ingresos (todo va en positivo): revisa la lista y quita los ingresos.</p>' : ''}
+      ${todosPositivos ? '<p class="nota">El archivo no distingue gastos e ingresos (todo va en positivo). He separado como ingresos los que lo parecen (nóminas, abonos, devoluciones…). Si se cuela alguno, después ábrelo y cambia «Es» a Ingreso, o búscalo con 🔍 y pásalo a ➕ Ingresos.</p>' : ''}
       ${nuevos.length ? `<p class="suave">Así los he clasificado (luego puedes cambiar cualquiera y aprendo para la próxima):</p>
       <div class="cg-prev">${Object.entries(porCat).sort((a, b) => b[1] - a[1]).map(([cat, n]) => `<span class="pill-cc" style="--h:${colorCatC(cat)}">${esc(cat)} · ${n}</span>`).join(' ')}</div>
       <div class="cg-prev-lista">${nuevos.slice(0, 200).map((g, i) => `<label><input type="checkbox" data-i="${i}" checked> <span>${+g.fecha.slice(8)} ${MESES_C[+g.fecha.slice(5, 7) - 1]}</span> <span>${esc(g.concepto)}${g.fijoId ? ' <span class="pill-cc gris">🔁</span>' : ''}</span> <b>${eurG(g.importe)}</b></label>`).join('')}</div>` : ''}
@@ -683,7 +729,7 @@ function cargarExcel() {
   const seccion = () => {
     const cats = lista();
     const reglas = (D.reglasCasa || []).slice().sort((a, b) => a.cat.localeCompare(b.cat) || a.clave.localeCompare(b.clave));
-    const opts = (sel) => cats.map(x => `<option${x === sel ? ' selected' : ''}>${esc(x)}</option>`).join('');
+    const opts = (sel) => `<option value="${ES_ING}"${sel === ES_ING ? ' selected' : ''}>➕ Es un ingreso</option>` + cats.map(x => `<option${x === sel ? ' selected' : ''}>${esc(x)}</option>`).join('');
     return `<section class="tarjeta" id="aj-gastos" style="grid-column:1/-1"><h2>💶 Gastos de casa</h2>
       <div class="ajg">
         <div><h3>Categorías</h3><p class="suave">Cambia el nombre (se cambia también en los gastos ya apuntados), añade las tuyas o quita las que no uses (sus gastos pasan a «Otros»). En «€/mes» pon tu presupuesto: en Gastos verás la marca y te aviso en Inicio al acercarte.</p>
@@ -740,8 +786,10 @@ function cargarExcel() {
       const k = normCasa($('#ajg-npal', t).value); if (!k) return;
       const cat = $('#ajg-ncatr', t).value;
       D.reglasCasa = (D.reglasCasa || []).filter(x => x.clave !== k); D.reglasCasa.push({ clave: k, cat, mano: true });
-      let n = 0; (D.gastosCasa || []).forEach(g => { if (normCasa(g.concepto).includes(k) && g.cat !== cat) { g.cat = cat; n++; } });
-      repinta(); if (n) aviso(`${plural(n, 'gasto cambiado', 'gastos cambiados')} a ${cat}`);
+      let n = 0;
+      if (cat === ES_ING) (D.gastosCasa || []).filter(g => normCasa(g.concepto).includes(k)).forEach(g => { gastoAIngreso(g); n++; });
+      else { (D.gastosCasa || []).forEach(g => { if (normCasa(g.concepto).includes(k) && g.cat !== cat) { g.cat = cat; n++; } }); (D.ingresosCasa || []).filter(i => normCasa(i.concepto).includes(k)).forEach(i => { ingresoAGasto(i, cat); n++; }); }
+      repinta(); if (n) aviso(`${plural(n, 'apunte cambiado', 'apuntes cambiados')} a ${cat === ES_ING ? 'ingresos' : cat}`);
     };
     $('#ajg-addreg', t).onclick = addReg; $('#ajg-npal', t).onkeydown = (e) => { if (e.key === 'Enter') addReg(); };
     $$('[data-rk]', t).forEach(inp => inp.onchange = () => {
@@ -751,9 +799,10 @@ function cargarExcel() {
     $$('[data-rc]', t).forEach(sel => sel.onchange = () => { const r = D.reglasCasa.find(x => x.clave === sel.dataset.rc); if (r) { r.cat = sel.value; repinta(); } });
     $$('[data-rdel]', t).forEach(b => b.onclick = () => { const antes = D.reglasCasa.slice(); D.reglasCasa = D.reglasCasa.filter(x => x.clave !== b.dataset.rdel); repinta(); aviso('Concepto quitado', { t: 'Deshacer', fn: () => { D.reglasCasa = antes; repinta(); } }); });
     $('#ajg-aplicar', t).onclick = () => {
-      const antes = (D.gastosCasa || []).map(g => g.cat); let n = 0;
+      const copia = JSON.stringify({ g: D.gastosCasa || [], i: D.ingresosCasa || [] }); let n = 0;
+      (D.gastosCasa || []).filter(g => !g.partes && (D.reglasCasa || []).some(r => r.cat === ES_ING && r.clave && normCasa(g.concepto).includes(r.clave))).forEach(g => { gastoAIngreso(g); n++; });
       (D.gastosCasa || []).forEach(g => { if (g.partes) return; const c = adivinarCat(g.concepto); if (c !== 'Otros' && c !== g.cat) { g.cat = c; n++; } else if (!catsCasa().includes(g.cat)) { g.cat = 'Otros'; n++; } });
-      repinta(); aviso(n ? `${plural(n, 'gasto reclasificado', 'gastos reclasificados')}` : 'Todo estaba ya bien clasificado', n ? { t: 'Deshacer', fn: () => { D.gastosCasa.forEach((g, i) => g.cat = antes[i]); repinta(); } } : undefined);
+      repinta(); aviso(n ? `${plural(n, 'apunte reclasificado', 'apuntes reclasificados')}` : 'Todo estaba ya bien clasificado', n ? { t: 'Deshacer', fn: () => { const a = JSON.parse(copia); D.gastosCasa = a.g; D.ingresosCasa = a.i; repinta(); } } : undefined);
     };
   }
   const orig = VISTAS.ajustes;

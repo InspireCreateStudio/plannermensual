@@ -658,3 +658,4 @@ details.atrasadas summary { cursor: pointer; color: var(--rojo); font-weight: 60
 .cg-menos { color: #c0453a; white-space: nowrap; } .cg-mas { color: #2f8a57; white-space: nowrap; }
 .cg-rojo { color: #c0453a; } .cg-verde { color: #2f8a57; } .cg-rojo.pasado { font-weight: 700; background: #fbe9e6; }
 .cifras .cg-menos, .cifras .cg-mas { font: inherit; color: inherit; } .cifras b .cg-menos { color: #c0453a; } .cifras b .cg-mas { color: #2f8a57; }
+.cg-pill-ing { background: #e3f3e8; color: #2f7a4d; }
